@@ -2,8 +2,8 @@ using DrWatson
 @quickactivate :LangevinDynamics
 
 # Here you may include files from the source directory
-include(srcdir("dummy_src_file.jl"))
 
+update_2d_langevin!
 println(
 """
 Currently active project is: $(projectname())
