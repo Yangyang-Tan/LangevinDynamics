@@ -3,7 +3,7 @@ using DrWatson
 
 # Here you may include files from the source directory
 
-update_2d_langevin!
+LangevinDynamics.init_langevin_2d
 println(
 """
 Currently active project is: $(projectname())

@@ -19,3 +19,14 @@ function langevin_2d_loop_GPU(du, u, p, t)
 	blocks = cld.((N,N,M), threads)
 	@cuda blocks = blocks threads = threads update_2d_langevin!(du, u, alpha, dx,σ0)
 end
+
+function init_langevin_2d(xyd)
+	N = length(xyd)
+	u = zeros(myT, N, N,M)
+	for I in CartesianIndices((N, N,M))
+		x = xyd[I[1]]
+		y = xyd[I[2]]
+		u[I] = randn()
+	end
+	return u
+end
