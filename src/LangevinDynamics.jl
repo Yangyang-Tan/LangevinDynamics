@@ -5,6 +5,6 @@ using Reexport
 # using NCDatasets: NCDataset, dimnames, NCDatasets
 # export NCDataset, dimnames
 # include("core.jl") # this file now also has export statements
-# include("style.jl")
+include("GPUKernel.jl")
 
 end
