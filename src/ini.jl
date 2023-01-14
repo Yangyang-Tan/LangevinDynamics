@@ -2,7 +2,7 @@ device!(0)
 const N = 100
 const M = 100
 const xyd_brusselator = range(0; stop = 10, length = N)
-myT=Float32
+const myT=Float32
 function δUδσ(σ::T; h::T = T(0.0), σ0::T = T(0.1)) where {T}
 	return σ * (σ^2 - σ0^2) - h
 end

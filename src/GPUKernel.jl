@@ -24,15 +24,15 @@ end
 export update_2d_langevin!
 
 
-function update_2d__shem_langevin!(dσ, σ, alpha, dx,σ0)
+function update_2d_shem_langevin!(dσ, σ, alpha, dx,σ0)
 	i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
     k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
 	ti = threadIdx().x
     tj = threadIdx().y
 	tk = threadIdx().z
-    σ_l = @cuDynamicSharedMem(myT, (blockDim().x, blockDim().y, blockDim().z))
-	@inbounds σ_l[ti,tj,tz] = σ[i,j,k]
+    σ_l = CuDynamicSharedArray(Float32, (blockDim().x, blockDim().y,blockDim().z))
+	@inbounds σ_l[ti,tj,tk] = σ[i,j,k]
 	sync_threads()
 	if (i > 0 && i <= N && j > 0 && j <= N&&k > 0 && k <= M)
 		ip1, im1, jp1, jm1 = limit(ti + 1, N), limit(ti - 1, N), limit(tj + 1, N), limit(tj - 1, N)
@@ -43,7 +43,7 @@ function update_2d__shem_langevin!(dσ, σ, alpha, dx,σ0)
 	end
 	return nothing
 end
-export update_2d__shem_langevin!
+export update_2d_shem_langevin!
 
 function langevin_2d_loop_GPU(dσ, σ, p, t)
 	alpha, dx,σ0 = p
