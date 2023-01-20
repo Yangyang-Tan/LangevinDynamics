@@ -14,3 +14,12 @@ makedocs(
 #=deploydocs(
     repo = "<repository url>"
 )=#
+
+
+deploydocs(;
+    repo = "github.com/Yangyang-Tan/LangevinDynamics",
+    devbranch = "main",
+    devurl="dev",
+    target = "build",
+    branch = "gh-pages"
+)
