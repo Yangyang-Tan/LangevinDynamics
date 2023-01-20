@@ -1,6 +1,7 @@
 name = "LangevinDynamics"
 authors = ["Yang-yang Tan"]
-
+uuid = "0e66e810-98dd-11ed-380b-270cc7b83b46"
+version = "0.1.0"
 [deps]
 AverageShiftedHistograms = "77b51b56-6f8f-5c3a-9cb4-d71f9594ea6e"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
