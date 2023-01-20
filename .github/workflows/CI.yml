@@ -35,3 +35,14 @@ jobs:
       - name: Run tests
         run: >
           julia --project=. --color=yes test/runtests.jl
+
+jobs:
+  include:
+    - stage: "Documentation"
+      julia: 1.6
+      os: linux
+      script:
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
+                                               Pkg.instantiate()'
+        - julia --project=docs/ docs/make.jl
+      after_success: skip
