@@ -1,10 +1,11 @@
 using Documenter
-using LangevinDynamics
+# using LangevinDynamics
 
 makedocs(
     sitename = "LangevinDynamics",
-    format = Documenter.HTML(),
-    modules = [LangevinDynamics]
+    format = Documenter.HTML()
+    # ,
+    # modules = [LangevinDynamics]
 )
 
 # Documenter can also automatically deploy documentation to gh-pages.
