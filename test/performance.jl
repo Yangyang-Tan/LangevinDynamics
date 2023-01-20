@@ -55,7 +55,9 @@ t_it4 = @belapsed begin
     langevin_2d_loop_flat_shem_GPU($du, $u0_GPU, $p, 0.0f0)
     synchronize()
 end
-T_eff = (2 * 1 + 1) * 1 / 1e9 * nx * ny * sizeof(Float32) / t_it
+T_eff = (2) * 1 / 1e9 * nx *nx* nz*sizeof(Float32) / t_it
+nx=32*2^3
+nz=2^8
 
 :(1+1)
 
