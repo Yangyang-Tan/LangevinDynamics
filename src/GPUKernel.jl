@@ -7,12 +7,12 @@ limit(a, n) =
         a
     end
 
-function update_2d_langevin!(dσ, σ, alpha, dx, σ0,h)
+function update_2d_langevin!(dσ, σ, alpha, dx, σ0, h)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
     k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
-    N=size(σ,1)
-    M=size(σ,3)
+    N = size(σ, 1)
+    M = size(σ, 3)
     # M=blockDim().z *gridDim().z
     if (i > 0 && i <= N && j > 0 && j <= N && k > 0 && k <= M)
         ip1, im1, jp1, jm1 = limit(i + 1, N),
@@ -21,12 +21,50 @@ function update_2d_langevin!(dσ, σ, alpha, dx, σ0,h)
         @inbounds dσ[i, j, k] =
             alpha *
             (σ[im1, j, k] + σ[ip1, j, k] + σ[i, jm1, k] + σ[i, jp1, k] - 4 * σ[i, j, k]) /
-            (dx^2) - δUδσ(σ[i, j, k]; σ0=σ0,h=h)
+            (dx^2) - δUδσ(σ[i, j, k]; σ0=σ0, h=h)
         # @inbounds dσ[i, j] =i+j
     end
     return nothing
 end
 export update_2d_langevin!
+
+@inline function kernel_2D_langevin!(dσ, σ, II, I, t, p...)
+    alpha, σ0, h, dx, N = p
+    i, j, k = Tuple(I)
+    ip1, im1, jp1, jm1 = limit(i + 1, N), limit(i - 1, N), limit(j + 1, N), limit(j - 1, N)
+    return dσ[II[i, j, k]] =
+        alpha * (
+            σ[II[im1, j, k]] + σ[II[ip1, j, k]] + σ[II[i, jm1, k]] + σ[II[i, jp1, k]] -
+            4 * σ[II[i, j, k]]
+        ) / (dx^2) - δUδσ(σ[II[i, j, k]]; σ0=σ0, h=h)
+end
+
+@inline function kernel_1D_langevin!(dσ, σ, II, I, t, p...)
+    alpha, σ0, h, dx, N = p
+    i, k = Tuple(I)
+    ip1 = limit(i + 1, N)
+    im1 = limit(i - 1, N)
+    return dσ[II[i, k]] =
+        alpha * (σ[II[im1, k]] + σ[II[ip1, k]] - 2 * σ[II[i, k]]) / (dx^2) -
+        δUδσ(σ[II[i, k]]; σ0=σ0, h=h)
+end
+
+function update_1d_langevin!(dσ, σ, alpha, dx, σ0, h)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    N = size(σ, 1)
+    M = size(σ, 2)
+    # M=blockDim().z *gridDim().z
+    if (i > 0 && i <= N && k > 0 && k <= M)
+        ip1, im1 = limit(i + 1, N), limit(i - 1, N)
+        @inbounds dσ[i, k] =
+            alpha * (σ[im1, k] + σ[ip1, k] - 2 * σ[i, k]) / (dx^2) -
+            δUδσ(σ[i, k]; σ0=σ0, h=h)
+        # @inbounds dσ[i, j] =i+j
+    end
+    return nothing
+end
+export update_1d_langevin!
 
 function update_2d_flat_langevin!(dσ, σ, alpha, dx, σ0)
     id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -98,35 +136,43 @@ end
 export update_2d_shem_langevin!
 
 function update_2d_flat_shem_langevin!(dσ, σ, alpha, dx, σ0)
-	i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
-	idk = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    idk = (blockIdx().z - 1) * blockDim().z + threadIdx().z
     ti = threadIdx().x
     tj = threadIdx().y
-    σ_l = CuDynamicSharedArray(myT, (blockDim().x,blockDim().y))
-	bdim=blockDim().x
-	strz = blockDim().z * gridDim().z
+    σ_l = CuDynamicSharedArray(myT, (blockDim().x, blockDim().y))
+    bdim = blockDim().x
+    strz = blockDim().z * gridDim().z
     for k in idk:strz:M
-        @inbounds σ_l[ti,tj] = σ[i, j, k]
+        @inbounds σ_l[ti, tj] = σ[i, j, k]
         ip1, im1, jp1, jm1 = limit(ti + 1, bdim),
         limit(ti - 1, bdim), limit(tj + 1, bdim),
         limit(tj - 1, bdim)
         @inbounds σ[i, j, k] =
-            alpha * (
-                σ_l[im1, tj] + σ_l[ip1, tj] + σ_l[ti, jm1] + σ_l[ti, jp1] -
-                4 * σ_l[ti, tj]
-            ) / (dx^2) - δUδσ(σ_l[ti, tj]; σ0=σ0)
+            alpha *
+            (σ_l[im1, tj] + σ_l[ip1, tj] + σ_l[ti, jm1] + σ_l[ti, jp1] - 4 * σ_l[ti, tj]) /
+            (dx^2) - δUδσ(σ_l[ti, tj]; σ0=σ0)
     end
     return nothing
 end
 export update_2d_flat_shem_langevin!
 
-function langevin_2d_loop_GPU(dσ, σ, p, t)
-    alpha, dx, σ0,h = p
+function langevin_1d_loop_GPU(dσ, σ, p, t)
+    alpha, dx, σ0, h = p
     # alpha = alpha / dx^2
-    threads = (8, 8, 8)
+    threads = (512, 1)
+    blocks = cld.((N, M), threads)
+    @cuda blocks = blocks threads = threads update_1d_langevin!(dσ, σ, alpha, dx, σ0, h)
+end
+export langevin_1d_loop_GPU
+
+function langevin_2d_loop_GPU(dσ, σ, p, t)
+    alpha, dx, σ0, h = p
+    # alpha = alpha / dx^2
+    threads = (8, 8, 1)
     blocks = cld.((N, N, M), threads)
-    @cuda blocks = blocks threads = threads update_2d_langevin!(dσ, σ, alpha, dx, σ0,h)
+    @cuda blocks = blocks threads = threads update_2d_langevin!(dσ, σ, alpha, dx, σ0, h)
 end
 export langevin_2d_loop_GPU
 
@@ -162,8 +208,8 @@ export langevin_2d_loop_shem_GPU
 function langevin_2d_loop_flat_shem_GPU(dσ, σ, p, t)
     alpha, dx, σ0 = p
     # alpha = alpha / dx^2
-    threads = (32,32,1)
-    blocks = cld.((N, N,128), (32,32,1))
+    threads = (32, 32, 1)
+    blocks = cld.((N, N, 128), (32, 32, 1))
     @cuda blocks = blocks threads = threads shmem = prod(threads) * sizeof(Float32) update_2d_flat_shem_langevin!(
         dσ, σ, alpha, dx, σ0
     )

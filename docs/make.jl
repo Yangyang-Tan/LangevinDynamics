@@ -3,7 +3,18 @@ using Documenter
 
 makedocs(
     sitename = "LangevinDynamics",
-    format = Documenter.HTML()
+    format = Documenter.HTML(),
+    # pages = [
+    #      "Home" => "index.md",
+    #      "Getting Started" => "getting_started.md",
+    #      "References" => [
+    #          "notation.md",
+    #          "baseline.md",
+    #          "collaborative_filtering.md",
+    #          "content_based_filtering.md",
+    #          "evaluation.md",
+    #      ],
+
     # ,
     # modules = [LangevinDynamics]
 )
