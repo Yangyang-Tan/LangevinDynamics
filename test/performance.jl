@@ -35,9 +35,21 @@ kernel = @cuda launch=false update_2d_flat2_langevin!(du, u0_GPU, p...)
 config = launch_configuration(kernel.fun)
 
 
-p = LangevinDynamics.myT.((0.02, step(LangevinDynamics.xyd_brusselator), 0.1))
+p = LangevinDynamics.myT.((0.02, 0.1,0.0,step(LangevinDynamics.xyd_brusselator)))
 t_it = @belapsed begin
     langevin_2d_loop_GPU($du, $u0_GPU, $p, 0.0f0)
+    synchronize()
+end
+
+
+
+
+
+
+langevin_2d!(du, u0_GPU, p, 0.0f0)
+
+t_it2 = @belapsed begin
+    langevin_2d!($du, $u0_GPU, $p, 0.0f0)
     synchronize()
 end
 
