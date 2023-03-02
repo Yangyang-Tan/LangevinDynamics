@@ -46,7 +46,7 @@ cb = SavingCallback(
 @time sol_SDE = solve(
     langevin_2d_SDE_prob(;
         γ=0.3f0,
-        m2=-0.5f0,
+        m2=-1.0f0,
         λ=1.0f0,
         J=0.0f0,
         tspan=(0.0f0, 400.0f0),
@@ -75,19 +75,20 @@ function getM(T)
     cb = SavingCallback(
     (u, t, integrator) -> begin
         # u_c=Array(u);
-        ϕ=[mean(u[:,:,i,1]) for i in 1:size(u)[3]];
-        return mean(ϕ)
+        # ϕ1=[mean(u[:,:,i,1]) for i in 1:size(u)[3]];
+        # ϕ2=[mean(u[:,:,i,2]) for i in 1:size(u)[3]];
+        return Array(dropdims(mean(u,dims=[1,2]),dims=(1,2)))
     end,
     saved_values;
-    saveat=0.0:0.2:800.0,
+    saveat=1000.0:0.02:1400.0,
 )
 sol_SDE = solve(
     langevin_2d_SDE_prob(;
-        γ=0.3f0,
-        m2=-0.5f0,
+        γ=0.1f0,
+        m2=-1.0f0,
         λ=1.0f0,
         J=0.0f0,
-        tspan=(0.0f0, 800.0f0),
+        tspan=(0.0f0, 1400.0f0),
         T=T,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
@@ -95,32 +96,31 @@ sol_SDE = solve(
     ),
     [SOSRA(),ImplicitEM(),SImplicitMidpoint(),ImplicitRKMil(),SKSROCK(),SRA3(),SOSRI()][1],
     EnsembleSerial();
-    dtmax=0.1,
+    dtmax=0.02,
     trajectories=1,
     # dt=0.1f0,
     # saveat=0.0:0.2:8.0,
     save_everystep=false,
     save_start=true,
-    save_end=true,
+    save_end=false,
     dense=false,
     callback=cb,
     abstol=1e-1,
     reltol=1e-1,
 )
+println("T=", T)
 return saved_values.saveval
 end
 
 Nx=LangevinDynamics.N
-testf=[1.0]
-params
-datadir("sims", savename(params, "jld2"))
-wsave("/home/tyy/Documents/LangevinDynamics/data/sims/Nx=64.jld2", testf)
-tempv=getM(2.0f0)
+NM=LangevinDynamics.M
+Trng=[0.5f0]
+tempv=getM.(Trng)
+tempv3=getM.(Trng)
+tempv4=getM.(Trng)
+tempv_T05=getM.(Trng)
+@tagsave(datadir("sims", savename((@strdict Nx NM), "jld2")), (@strdict tempv))
 
-@tagsave(datadir("sims", savename(params, "jld2")), (@strdict Nx))
-
-datadir("sims", savename(params, "jld2"))
-params = @strdict Nx
 
 saved_values.saveval[1]
 temash = ash(vec(sol_GPU[:, :, :, 1, :]); kernel=Kernels.gaussian, m=5, rng=-0.5:0.001:0.5)
@@ -139,3 +139,35 @@ mean(saved_values.saveval[2500:end].^2)-mean(saved_values.saveval[2500:end])^2
 mean(saved_values.saveval[2500:end].^2)-mean(saved_values.saveval[2500:end])^2
 ini_SDE.=cu(sol_SDE[:, :, :, :, 2,1])
 ini_SDE|>Array
+plot([tempv[5][i][7] for i in 1:length(tempv)])
+plot(Trng,[mean(mean.(tempv[i])[1000:end]) for i in 1:61])
+plot(Trng,[mean((mean.(tempv[i])[8000:end]).^2)-mean(mean.(tempv[i])[8000:end])^2 for i in 1:19])
+tempv[1][:,1]
+mean((mean.(tempv[1])[8000:end]).^2)-mean(mean.(tempv[1])[8000:end])^2
+
+plot(Trng,[mean(hcat(tempv[i]...)[1,5000:end].^2)-mean(hcat(tempv[i]...)[1,5000:end])^2 for i in 1:61]./Trng)
+
+chidata=mean([[mean(hcat(tempv[i]...)[j,500:end].^2)-mean(hcat(tempv[i]...)[j,500:end])^2 for i in 1:61] for j in 1:64])./Trng
+chidata2=mean([[mean(hcat(tempv2[i]...)[j,5000:end].^2)-mean(hcat(tempv2[i]...)[j,5000:end])^2 for i in 1:19] for j in 1:64])./Trng2
+Trng2=collect(1.5f0:0.05f0:2.4f0)
+plot!(Trng,128^2*chidata,seriestype=:scatter,label="128×128",xlabel="T",ylabel="χ")
+plot(Trng2,64^2*chidata2,seriestype=:scatter,label="64×64",xlabel="T",ylabel="χ")
+tempv2
+
+chidata2
+
+plot(log.((2.0.-Trng[1:30])./2.0),log.(chidata[1:30]))
+
+plot!(x->chia+chib*x,-4.5,-1.0)
+
+chia,chib=linear_fit(log.((2.0.-Trng[1:30])./2.0),log.(chidata[1:30]))
+
+
+
+plot(Trng2,[mean(mean.(tempv2[i])[5000:end]) for i in 1:19],seriestype=:scatter,label="64×64",xlabel="T",ylabel="M")
+
+plot!(Trng,[mean(mean.(tempv[i])[100:end]) for i in 1:61],seriestype=:scatter,label="128×128")
+tempv2=wload(datadir("sims", "NM=64_Nx=64.jld2"))["tempv"]
+
+
+plot([mean(tempv[1][t][2].*tempv[1][1][1]-tempv[1][1][2].*tempv[1][t][1]) for t in 1:10001])

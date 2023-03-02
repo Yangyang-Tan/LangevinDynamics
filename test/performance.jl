@@ -1,4 +1,5 @@
 using DrWatson
+
 @time @quickactivate :LangevinDynamics
 using BenchmarkTools
 u0 = init_langevin_2d(LangevinDynamics.xyd_brusselator)
@@ -79,3 +80,23 @@ function testf2(;u0=(x)->rand(5))
 end
 testf2(;)
 langevin_2d_ODE_prob()
+
+
+u0 = randn(128,128,2)
+u0_GPU = CuArray(u0)
+du = similar(u0_GPU)
+p = LangevinDynamics.myT.((1,-1,1,0))
+
+langevin_0d_tex_loop_GPU(du, u0_GPU,δUδσTextureTex, p, 0.1f0)
+
+
+
+t_it = @belapsed begin
+    langevin_iso_loop_GPU($du, $u0_GPU, $p, 0.0f0)
+    synchronize()
+end
+
+t_it2 = @belapsed begin
+    langevin_iso_loop_GPU($du, $u0_GPU, $p, 0.0f0)
+    synchronize()
+end

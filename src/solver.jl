@@ -29,7 +29,7 @@ function langevin_2d_SDE_prob(
     λ=1.0f0,
     J=0.0f0,
     tspan=myT.((0.0, 15.0)),
-    T=4.3f0,
+    T=5.0f0,
 )
     # u0 = init_langevin_2d(xyd_brusselator)
     function g(du, u, p, t)
@@ -53,24 +53,34 @@ export langevin_2d_SDE_prob
 
 function langevin_1d_SDE_prob(
     ODEfun=langevin_1d_loop_GPU;
-    u0fun=(i) -> CUDA.randn(myT, N, M),
-    η=10.0,
-    σ0=0.1,
-    h=0.0,
+    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    γ=1.0f0,
+    m2=-1.0f0,
+    λ=1.0f0,
+    J=0.0f0,
     tspan=myT.((0.0, 15.0)),
-    g0=0.5f0,
+    T=5.0f0,
 )
     # u0 = init_langevin_2d(xyd_brusselator)
     function g(du, u, p, t)
         # return du .= mσ*coth(mσ/(2*T))
-        return du .= sqrt(2 * T / γ)
+        du[:,:,1] .= 0.0f0
+        du[:,:,2] .= sqrt(2 * T*γ)
     end
     u0_GPU = 1.0f0
     function prob_func(prob, i, repeat)
         return remake(prob; u0=u0fun(i))
     end
     output_func(sol, i) = (Array(sol), false)
-    p = myT.((η, σ0, h, step(xyd_brusselator)))
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    p = myT.((γ, m2, λ, J))
     return EnsembleProblem(
         SDEProblem(ODEfun, g, u0_GPU, tspan, p);
         prob_func=prob_func,
@@ -78,3 +88,155 @@ function langevin_1d_SDE_prob(
     )
 end
 export langevin_1d_SDE_prob
+
+
+function langevin_1d_tex_SDE_prob(
+    ODEfun=langevin_1d_tex_loop_GPU;
+    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    γ=1.0f0,
+    m2=-1.0f0,
+    λ=1.0f0,
+    J=0.0f0,
+    tspan=myT.((0.0, 15.0)),
+    T=5.0f0,
+    tex=tex,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+    function g(du, u, p, t)
+        # return du .= mσ*coth(mσ/(2*T))
+        du[:,:,1] .= 0.0f0
+        du[:,:,2] .= sqrt(2 * T*γ)
+    end
+    u0_GPU = 1.0f0
+    function prob_func(prob, i, repeat)
+        return remake(prob; u0=u0fun(i))
+    end
+    output_func(sol, i) = (Array(sol), false)
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    p = myT.((γ, m2, λ, J))
+    ODEfun_tex(dσ, σ,p,t)=langevin_1d_tex_loop_GPU(dσ, σ,tex, p, t)
+    return EnsembleProblem(
+        SDEProblem(ODEfun_tex, g, u0_GPU, tspan, p);
+        prob_func=prob_func,
+        output_func=output_func,
+    )
+end
+export langevin_1d_tex_SDE_prob
+
+
+function langevin_0d_SDE_prob(
+    ODEfun=langevin_0d_loop_GPU;
+    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    γ=1.0f0,
+    m2=-1.0f0,
+    λ=1.0f0,
+    J=0.0f0,
+    tspan=myT.((0.0, 15.0)),
+    T=5.0f0,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+    function g(du, u, p, t)
+        # return du .= mσ*coth(mσ/(2*T))
+        du[:,:,1] .= 0.0
+        du[:,:,2] .= sqrt(2 * T*γ)
+    end
+    u0_GPU = 1.0f0
+    function prob_func(prob, i, repeat)
+        return remake(prob; u0=u0fun(i))
+    end
+    output_func(sol, i) = (Array(sol), false)
+    p = myT.((γ, m2, λ, J))
+    # W = WienerProcess(0.0,0.0,0.0)
+    return EnsembleProblem(
+        SDEProblem(ODEfun, g, u0_GPU, tspan, p);
+        prob_func=prob_func,
+        output_func=output_func,
+    )
+end
+export langevin_0d_SDE_prob
+
+
+
+function langevin_0d_tex_SDE_prob(
+    ODEfun=langevin_0d_tex_loop_GPU;
+    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    γ=1.0f0,
+    m2=-1.0f0,
+    λ=1.0f0,
+    J=0.0f0,
+    tspan=myT.((0.0, 15.0)),
+    T=5.0f0,
+    tex=tex,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+    function g(du, u, p, t)
+        # return du .= mσ*coth(mσ/(2*T))
+        du[:,:,1] .= 0.0
+        du[:,:,2] .= sqrt(2 * T*γ)
+    end
+    u0_GPU = 1.0f0
+    function prob_func(prob, i, repeat)
+        return remake(prob; u0=u0fun(i))
+    end
+    output_func(sol, i) = (Array(sol), false)
+    p = myT.((γ, m2, λ, J))
+    # W = WienerProcess(0.0,0.0,0.0)
+    ODEfun_tex(dσ, σ,p,t)=langevin_0d_tex_loop_GPU(dσ, σ,tex, p, t)
+    return EnsembleProblem(
+        SDEProblem(ODEfun_tex, g, u0_GPU, tspan, p);
+        prob_func=prob_func,
+        output_func=output_func,
+    )
+
+end
+export langevin_0d_tex_SDE_prob
+
+function langevin_iso_SDE_prob(
+    ODEfun=langevin_iso_loop_GPU;
+    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    γ=1.0f0,
+    m2=-1.0f0,
+    λ=1.0f0,
+    J=0.0f0,
+    tspan=myT.((0.0, 15.0)),
+    T=5.0f0,
+    d=3.0f0,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+    weight_mean2=0.1:0.1:1024*0.1
+    V=sum(weight_mean2.^2) *4*pi
+    ξ=myT(sqrt(γ*sqrt(abs(m2))*coth(sqrt(abs(m2))/(2*T))/V))
+    @show ξ
+    function g(du, u, p, t)
+        du[:,:,1] .= 0.0f0
+        du[:,:,2] .= ξ
+    end
+    u0_GPU = 1.0f0
+    function prob_func(prob, i, repeat)
+        return remake(prob; u0=u0fun(i))
+    end
+    output_func(sol, i) = (begin
+        ar=Array(sol)[:,1,1,:]
+        # mean(ar,dims=1)
+        mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+        varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+        kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+        stack([mσ, varσ, kσ.-3])
+    end, false)
+    # W = WienerProcess(0.0,0.0,0.0)
+    p = myT.((d,γ, m2, λ, J))
+    W = WienerProcess(0.0, 0.0, 0.0)
+    return EnsembleProblem(
+        SDEProblem(ODEfun, g, u0_GPU, tspan, p,noise = W);
+        prob_func=prob_func,
+        output_func=output_func,
+    )
+end
+export langevin_iso_SDE_prob

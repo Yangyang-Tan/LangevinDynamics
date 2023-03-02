@@ -67,7 +67,7 @@ cb = SavingCallback(
         η=50.0,
         σ0=0.2,
         h=0.0,
-        g0=0.1f0,
+        g0=0.01f0,
         tspan=(0.0f0, 8000.0f0),
         u0fun=x ->
             CUDA.fill(1.0f0, LangevinDynamics.N, LangevinDynamics.M),
