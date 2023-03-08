@@ -34,6 +34,19 @@ end
 export init_langevin_2d
 
 
+# function init_langevin_3d(xyd,f=(x,y)->randn())
+# 	N = length(xyd)
+# 	u = zeros(myT, N, N,N,M,2)
+# 	for I in CartesianIndices((N, N,N,M,2))
+# 		x = xyd[I[1]]
+# 		y = xyd[I[2]]
+# 		u[I] = f(x,y)
+# 	end
+# 	return u
+# end
+# export init_langevin_2d
+
+
 function init_langevin_1d(xyd,f=(x)->randn())
 	N = length(xyd)
 	u = zeros(myT, N,M)

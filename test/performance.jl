@@ -82,17 +82,36 @@ testf2(;)
 langevin_2d_ODE_prob()
 
 
-u0 = randn(128,128,2)
+u0 = randn(Float32,64,64,64,2^7,2)
+sizeof(u0)/1024/1024/1024
 u0_GPU = CuArray(u0)
-du = similar(u0_GPU)
+du_GPU = similar(u0_GPU)
 p = LangevinDynamics.myT.((1,-1,1,0))
+@benchmark langevin_3d_tex_loop_GPU(du_GPU, u0_GPU,δUδσTextureTex, p, 0.1f0)
 
-langevin_0d_tex_loop_GPU(du, u0_GPU,δUδσTextureTex, p, 0.1f0)
+CartesianIndices((2, 2))[5]
+
+@benchmark CUDA.@sync langevin_3d_tex_loop_GPU_2($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
 
 
+@benchmark CUDA.@sync langevin_3d_tex_loop_GPU($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
+langevin_3d_tex_loop_GPU_2(du_GPU, u0_GPU,δUδσTextureTex, p, 0.1f0)
 
-t_it = @belapsed begin
-    langevin_iso_loop_GPU($du, $u0_GPU, $p, 0.0f0)
+
+2^3
+
+u0[]
+GC.gc(true)
+CUDA.reclaim()
+CPU()
+
+langevin_1d_loop_GPU(du_GPU, u0_GPU, p, 0.1f0)
+@benchmark langevin_1d_tex_loop_GPU(du_GPU, u0_GPU,δUδσTextureTex, p, 0.1f0)
+
+@benchmark langevin_1d_loop_GPU(du_GPU, u0_GPU, p, 0.1f0)
+
+t_it = @benchmark begin
+    langevin_1d_tex_loop_GPU($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
     synchronize()
 end
 
@@ -100,3 +119,5 @@ t_it2 = @belapsed begin
     langevin_iso_loop_GPU($du, $u0_GPU, $p, 0.0f0)
     synchronize()
 end
+using CUDA
+using CUDA.CUDAKernels

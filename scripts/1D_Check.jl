@@ -1,6 +1,6 @@
 sol_1D_SDE = solve(
     langevin_1d_tex_SDE_prob(;
-        γ = 0.2f0,
+        γ = 2.2f0,
         m2 = -1.0f0,
         λ = 5.0f0,
         J = 0.0f0,
@@ -42,7 +42,7 @@ heatmap(
     # right_margin = 8Plots.mm,
 )
 
-plot(
+plot!(
     mean(mapslices(x -> cumulant(x, 4)/cumulant(x, 2)^2, sol_1D_SDE[1][:, :, 1, :], dims = 1), dims = 2)[
         1,
         1,
