@@ -370,7 +370,8 @@ export langevin_3d_SDE_prob
 
 function langevin_3d_ODE_prob(
     ODEfun=langevin_3d_loop_GPU;
-    u0fun=(i) -> CUDA.randn(myT, N,M,2),
+    u0=u0,
+    du0=du0,
     γ=1.0f0,
     m2=-1.0f0,
     λ=1.0f0,
@@ -380,13 +381,7 @@ function langevin_3d_ODE_prob(
     para=para::TaylorParameters,
 )
     # u0 = init_langevin_2d(xyd_brusselator)
-
     Ufun=funout(para)
-    u0_GPU = 1.0f0
-    function prob_func(prob, i, repeat)
-        return remake(prob; u0=u0fun(i))
-    end
-    output_func(sol, i) = (Array(sol), false)
     # output_func(sol, i) = i
     # output_func(sol, i) = (begin
     #     ar=Array(sol)[:,1,1,:]
@@ -397,12 +392,8 @@ function langevin_3d_ODE_prob(
     #     stack([mσ, varσ, kσ.-3])
     # end, false)
     p = myT.((γ, m2, λ, J))
-    ODEfun_tex(dσ, σ,p,t)= langevin_3d_loop_GPU(dσ, σ,Ufun, p, t)
+    ODEfun_tex(ddσ,dσ, σ,p,t)= langevin_3d_leapfrog_loop_GPU(ddσ,dσ, σ,Ufun, p, t)
     # sdefun=SDEFunction(ODEfun_tex, g;ggprime=ggprime)
-    return EnsembleProblem(
-        ODEProblem(ODEfun_tex, u0_GPU, tspan, p);
-        prob_func=prob_func,
-        output_func=output_func,
-    )
+    SecondOrderODEProblem(ODEfun_tex, du0,u0, tspan, p)
 end
 export langevin_3d_ODE_prob

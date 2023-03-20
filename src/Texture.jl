@@ -52,5 +52,11 @@ function funout(λ::TaylorParameters)
         (σ * (-λ.ρ0 + σ^2 / 2)^4 * λ.λ5) / 24 - c
 end
 
-funout(TaylorParameters([1, 1, 2, 3, 4, 5]))(1)
-readdlm("data/eQCD_Input/buffer/lam1.dat")
+function Uσfunout(λ::TaylorParameters)
+    σ ->
+        (-λ.ρ0 + σ^2 / 2) * λ.λ1 +
+        (-λ.ρ0 + σ^2 / 2)^2 * λ.λ2/2 +
+        (-λ.ρ0 + σ^2 / 2)^3 * λ.λ3 / 6 +
+        (-λ.ρ0 + σ^2 / 2)^4 * λ.λ4 / 24 +
+        (-λ.ρ0 + σ^2 / 2)^5 * λ.λ5 / 120 - c*σ
+end

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc1"
 manifest_format = "2.0"
-project_hash = "c34117400d817c00958967495ccee306e389772a"
+project_hash = "e98318c9bf4139c95e047f83bfbeaef81b9014e7"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -148,6 +148,12 @@ git-tree-sha1 = "d9a9701b899b30332bbcb3e1679c41cce81fb0e8"
 uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 version = "1.3.2"
 
+[[deps.Bijectors]]
+deps = ["ArgCheck", "ChainRulesCore", "ChangesOfVariables", "Compat", "Distributions", "Functors", "InverseFunctions", "IrrationalConstants", "LinearAlgebra", "LogExpFunctions", "MappedArrays", "Random", "Reexport", "Requires", "Roots", "SparseArrays", "Statistics"]
+git-tree-sha1 = "8a52f9c039babd865d34f3e19c012aacbabbd98a"
+uuid = "76274a88-744f-5084-9051-94815aaf08c4"
+version = "0.12.3"
+
 [[deps.BitFlags]]
 git-tree-sha1 = "43b1a4a8f797c1cddadf60499a8a077d4af2cd2d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
@@ -235,6 +241,16 @@ deps = ["Compat", "LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "c6d890a52d2c4d55d326439580c3b8d0875a77d9"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 version = "1.15.7"
+
+[[deps.ChangesOfVariables]]
+deps = ["LinearAlgebra", "Test"]
+git-tree-sha1 = "485193efd2176b88e6622a39a246f8c5b600e74e"
+uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
+version = "0.1.6"
+weakdeps = ["ChainRulesCore"]
+
+    [deps.ChangesOfVariables.extensions]
+    ChangesOfVariablesChainRulesCoreExt = "ChainRulesCore"
 
 [[deps.CloseOpenIntervals]]
 deps = ["Static", "StaticArrayInterface"]
@@ -658,6 +674,12 @@ git-tree-sha1 = "b104d487b34566608f8b4e1c39fb0b10aa279ff8"
 uuid = "77dc65aa-8811-40c2-897b-53d922fa7daf"
 version = "0.1.3"
 
+[[deps.Functors]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "7ed0833a55979d3d2658a60b901469748a6b9a7c"
+uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
+version = "0.4.3"
+
 [[deps.Future]]
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
@@ -788,6 +810,12 @@ git-tree-sha1 = "4da0f88e9a39111c2fa3add390ab15f3a44f3ca3"
 uuid = "22cec73e-a1b8-11e9-2c92-598750a2cf9c"
 version = "0.3.1"
 
+[[deps.InlineTest]]
+deps = ["Test"]
+git-tree-sha1 = "daf0743879904f0ad645ca6594e1479685f158a2"
+uuid = "bd334432-b1e7-49c7-a2dc-dd9149e4ebd6"
+version = "0.2.0"
+
 [[deps.InplaceOps]]
 deps = ["LinearAlgebra", "Test"]
 git-tree-sha1 = "50b41d59e7164ab6fda65e71049fee9d890731ff"
@@ -809,6 +837,12 @@ deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArr
 git-tree-sha1 = "721ec2cf720536ad005cb38f50dbba7b02419a15"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 version = "0.14.7"
+
+[[deps.InverseFunctions]]
+deps = ["Test"]
+git-tree-sha1 = "49510dfcb407e572524ba94aeae2fced1f3feb0f"
+uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
+version = "0.1.8"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "630b497eafcc20001bba38a4651b327dcfc491d2"
@@ -1086,16 +1120,12 @@ deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
 git-tree-sha1 = "0a1b7c2863e44523180fdb3146534e265a91870b"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 version = "0.3.23"
+weakdeps = ["ChainRulesCore", "ChangesOfVariables", "InverseFunctions"]
 
     [deps.LogExpFunctions.extensions]
     LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
     LogExpFunctionsChangesOfVariablesExt = "ChangesOfVariables"
     LogExpFunctionsInverseFunctionsExt = "InverseFunctions"
-
-    [deps.LogExpFunctions.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    ChangesOfVariables = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
-    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -1139,6 +1169,11 @@ version = "0.6.2"
 git-tree-sha1 = "bcaef4fc7a0cfe2cba636d84cda54b5e4e4ca3cd"
 uuid = "d125e4d3-2237-4719-b19c-fa641b8a4667"
 version = "0.1.8"
+
+[[deps.MappedArrays]]
+git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
+uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
+version = "0.4.1"
 
 [[deps.MarchingCubes]]
 deps = ["SnoopPrecompile", "StaticArrays"]
@@ -1463,6 +1498,12 @@ git-tree-sha1 = "dc84268fe0e3335a62e315a3a7cf2afa7178a734"
 uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
 version = "0.4.3"
 
+[[deps.ReTest]]
+deps = ["Distributed", "InlineTest", "Printf", "Random", "Sockets", "Test"]
+git-tree-sha1 = "dd8f6587c0abac44bcec2e42f0aeddb73550c0ec"
+uuid = "e0db7c4e-2690-44b9-bad6-7687da720f89"
+version = "0.3.2"
+
 [[deps.RecipesBase]]
 deps = ["SnoopPrecompile"]
 git-tree-sha1 = "261dddd3b862bd2c940cf6ca4d1c8fe593e457c8"
@@ -1527,6 +1568,16 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "6ed52fdd3382cf21947b15e8870ac0ddbff736da"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.4.0+0"
+
+[[deps.Roots]]
+deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
+git-tree-sha1 = "b45deea4566988994ebb8fb80aa438a295995a6e"
+uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+version = "2.0.10"
+weakdeps = ["ForwardDiff"]
+
+    [deps.Roots.extensions]
+    RootsForwardDiffExt = "ForwardDiff"
 
 [[deps.RuntimeGeneratedFunctions]]
 deps = ["ExprTools", "SHA", "Serialization"]
@@ -1723,14 +1774,11 @@ deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Re
 git-tree-sha1 = "f625d686d5a88bcd2b15cd81f18f98186fdc0c9a"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "1.3.0"
+weakdeps = ["ChainRulesCore", "InverseFunctions"]
 
     [deps.StatsFuns.extensions]
     StatsFunsChainRulesCoreExt = "ChainRulesCore"
     StatsFunsInverseFunctionsExt = "InverseFunctions"
-
-    [deps.StatsFuns.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
 
 [[deps.SteadyStateDiffEq]]
 deps = ["DiffEqBase", "DiffEqCallbacks", "LinearAlgebra", "NLsolve", "Reexport", "SciMLBase"]
