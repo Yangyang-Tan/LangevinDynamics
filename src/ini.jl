@@ -1,4 +1,4 @@
-device!(0)
+# device!(0)
 N = 32*2^3
 M = 2^9
 xyd_brusselator = range(0; stop = 10, length = N)

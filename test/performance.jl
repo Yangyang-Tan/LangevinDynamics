@@ -82,7 +82,7 @@ testf2(;)
 langevin_2d_ODE_prob()
 
 
-u0 = randn(Float32,64,64,64,2^7,2)
+u0 = randn(Float32,64,64,64,2^11,2)
 sizeof(u0)/1024/1024/1024
 u0_GPU = CuArray(u0)
 du_GPU = similar(u0_GPU)
@@ -95,6 +95,15 @@ CartesianIndices((2, 2))[5]
 
 
 @benchmark CUDA.@sync langevin_3d_tex_loop_GPU($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
+
+
+@benchmark CUDA.@sync langevin_3d_loop_GPU(du_GPU, u0_GPU ,Uσ_CPU_fun, p, 0.1f0)
+
+
+
+
+
+
 langevin_3d_tex_loop_GPU_2(du_GPU, u0_GPU,δUδσTextureTex, p, 0.1f0)
 
 

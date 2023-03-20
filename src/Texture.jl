@@ -1,4 +1,4 @@
-using Dierckx, DelimitedFiles
+using DelimitedFiles,Dierckx
 
 Uσ_CPU_fun = Spline1D(
     readdlm("data/phi.dat")[:, 1] ./ (197.33),

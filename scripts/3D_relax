@@ -1,0 +1,127 @@
+device!(0)
+
+for i in 160:2:172
+    saved_values = SavedValues(Float32, Any)
+    cb = SavingCallback(
+    (u, t, integrator) -> begin
+        # u_c=Array(u);
+        # ϕ=[mean(u[:,:,i,1]) for i in 1:size(u)[3]];
+        # return mean(ϕ)
+        vu=@view u[:,:,:,:,1]
+        dvu=dropdims(mean(vu,dims=[1,2,3]),dims=(1,2,3))
+        return cumulant(dvu,1)
+    end,
+    saved_values;
+    # saveat=0.0:0.2:100.0,
+    save_everystep=true,
+    save_start = true
+    )
+    solve(
+    langevin_3d_SDE_prob(;
+        γ = 2.0f0,
+        m2 = -1.0f0,
+        λ = 5.0f0,
+        J = 0.0f0,
+        tspan = (0.0f0, 200.0f0),
+        T = i/197.33f0,
+        para=taylordata[i-1],
+        u0fun=x ->cat(CUDA.fill(0.6f0,32,32,32,2^9,1),CUDA.fill(0f0, 32,32,32,2^9,1),dims=5),
+        # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
+    ),
+    [
+        SOSRA(),
+        SMEB(),
+        SRA1(),
+        SRA(),
+        SOSRA2(),
+        SOSRI2(),
+        # SImplicitMidpoint(),
+        # ImplicitRKMil(),
+        SOSRI(),
+        PCEuler(ggprime),
+    ][end],
+    EnsembleSerial();
+    # dtmax = 0.01f0,
+    # split=true,
+    trajectories = 1,
+    dt=0.02f0,
+    # saveat = 0.0:0.1:10.0,
+    save_everystep = false,
+    save_start=false,
+    # save_end=false,
+    dense = false,
+    save_on=false,
+    initialize_save=false,
+    calck=false,
+    callback=cb,
+    abstol = 1e-1,
+    reltol = 1e-1,
+);
+writedlm("sims/mub=0/mean/T=$i ini=0.6_uniform_gam=2_var.dat",[saved_values.t[1:end] saved_values.saveval[1:end]])
+end
+
+
+tempi=1
+
+writedlm("sims/mub=0/mean/T=148 ini=0.6_uniform_gam=2_var.dat",[saved_values.t[1:end] saved_values.saveval[1:end]])
+
+
+sol_1D_SDE=solve(
+    langevin_3d_SDE_prob(;
+        γ = 2.0f0,
+        m2 = -1.0f0,
+        λ = 5.0f0,
+        J = 0.0f0,
+        tspan = (0.0f0, 600.0f0),
+        T = 150/197.33f0,
+        para=taylordata[149],
+        u0fun=x ->cat(CUDA.fill(0.6f0,32,32,32,2^9,1),CUDA.fill(0f0, 32,32,32,2^9,1),dims=5),
+        # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
+    ),
+    [
+        SOSRA(),
+        SMEB(),
+        SRA1(),
+        SRA(),
+        SOSRA2(),
+        SOSRI2(),
+        # SImplicitMidpoint(),
+        # ImplicitRKMil(),
+        SOSRI(),
+        PCEuler(ggprime),
+    ][end],
+    EnsembleSerial();
+    # dtmax = 0.01f0,
+    # split=true,
+    trajectories = 1,
+    dt=0.02f0,
+    # saveat = 0.0:0.1:10.0,
+    save_everystep = false,
+    save_start=false,
+    # save_end=false,
+    dense = false,
+    save_on=false,
+    initialize_save=false,
+    calck=false,
+    callback=cb,
+    abstol = 1e-1,
+    reltol = 1e-1,
+);
+writedlm("sims/mub=0/relax_time/T=150 N=32_M=2^9_mean.dat",[saved_values.t[1:end] saved_values.saveval[1:end]])
+
+# tempS=transpose(dropdims(mean(sol_1D_SDE[1][:,:,:,:,1,1],dims=[2,3]),dims=(2,3)))/0.2^2
+
+# plot(transpose(tempS))
+
+
+# tempS.tempS[:,1]
+# tempS
+# tempS .*tempS[:,1]
+
+
+# tempG=(vec(mean(tempS .*tempS[:,1],dims=1)).-mean(sol_1D_SDE[1][:,:,:,:,1,1])^2)*0.2^2
+
+# mean(tempS,dims=[1])
+
+# plot([-1/log(tempG[n+1]/tempG[n]) for n in 1:31])
+# plot(mean(tempS,dims=[1])[1,:])
