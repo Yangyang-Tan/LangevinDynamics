@@ -119,7 +119,7 @@ export update_1d_tex_langevin!
 function update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
     N = size(σ, 1)
     M = size(σ, 4)
-    dx = 0.2f0
+    dx = 1f0
     id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     k = (blockIdx().y - 1) * blockDim().y + threadIdx().y
     # z = (blockIdx().z - 1) * blockDim().z + threadIdx().z
@@ -152,6 +152,45 @@ function update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
     return nothing
 end
 export update_3d_langevin!
+
+
+
+
+function update_3d_simple_langevin!(dσ, σ, fun)
+    N = size(σ, 1)
+    # M = size(σ, 4)
+    dx = 1f0
+    id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    # z = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    # id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    #     stride = blockDim().x * gridDim().x
+    cind = CartesianIndices(σ)
+    # M=blockDim().z *gridDim().z
+    for i = id:blockDim().x*gridDim().x:prod(size(σ))
+        # x = cind[i][1]
+        # y = cind[i][2]
+        # z = cind[i][3]
+        # k = cind[i][4]
+        x, y, z, k = Tuple(cind[i])
+        xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
+        yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
+        zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
+        @inbounds dσ[x, y, z, k] =
+            (
+                σ[xp1, y, z, k] +
+                σ[xm1, y, z, k] +
+                σ[x, yp1, z, k] +
+                σ[x, ym1, z, k] +
+                σ[x, y, zp1, k] +
+                σ[x, y, zm1, k] - 6 * σ[x, y, z, k]
+            ) / dx^2 - fun(σ[x, y, z, k])
+    end
+    #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
+    #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]
+    # @inbounds dσ[i, j] =i+j
+    return nothing
+end
+export update_3d_simple_langevin!
 
 
 
@@ -476,6 +515,17 @@ function langevin_3d_loop_GPU(dσ, σ, fun, p, t)
 end
 export langevin_3d_loop_GPU
 
+function langevin_3d_loop_simple_GPU(dσ, σ, fun)
+    # alpha = alpha / dx^2
+    # N = size(σ, 1)
+    # M = size(σ, 4)
+    threads = 1024
+    blocks = 2^8
+    @cuda blocks = blocks threads = threads update_3d_simple_langevin!(dσ, σ, fun)
+end
+export langevin_3d_loop_simple_GPU
+
+
 
 # function langevin_3d_tex_loop_GPU(dσ, σ, tex, p, t)
 #     γ, m2, λ, J = p
@@ -503,12 +553,13 @@ export langevin_1d_loop_GPU
 function langevin_2d_loop_GPU(dσ, σ, p, t)
     γ, m2, λ, J = p
     # alpha = alpha / dx^2
-    threads = (8, 8, 8)
+    threads = (32, 32, 1)
+    N = size(σ, 1)
+    M = size(σ, 3)
     blocks = cld.((N, N, M), threads)
     @cuda blocks = blocks threads = threads update_2d_langevin!(dσ, σ, γ, m2, λ, J)
 end
 export langevin_2d_loop_GPU
-
 
 # function langevin_iso_loop_GPU(dσ, σ, p, t)
 #     d, γ, m2, λ, J = p

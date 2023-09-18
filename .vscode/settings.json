@@ -1,5 +1,7 @@
 {
-    "julia.additionalArgs": [],
+    "julia.additionalArgs": [
+    "--optimize=3"
+    ],
     "julia.persistentSession.enabled": true,
     "julia.persistentSession.tmuxSessionName": "julia_vscode_langevin"
 }

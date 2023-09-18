@@ -1,7 +1,7 @@
 # device!(0)
-N = 32*2^3
-M = 2^9
-xyd_brusselator = range(0; stop = 10, length = N)
+N_ini = 32*2^3
+M_ini = 2^9
+xyd_brusselator = range(0; stop = 10, length = N_ini)
 const myT=Float32
 # function δUδσ(σ::T; h::T = 0.0f0, σ0::T = 0.1f0) where {T}
 # 	return σ * (σ^2 - σ0^2) - h

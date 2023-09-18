@@ -1,11 +1,29 @@
 module LangevinDynamics
 
 using Reexport
-@reexport using CUDAKernels, LinearAlgebra, CUDA,Random,AverageShiftedHistograms,DifferentialEquations,StatsBase,KernelAbstractions
+@reexport using LinearAlgebra, CUDA,Random,AverageShiftedHistograms,DifferentialEquations,StatsBase
+import DifferentialEquations.StochasticDiffEq:
+    # OrdinaryDiffEqAlgorithm,
+    # OrdinaryDiffEqMutableCache,
+    # OrdinaryDiffEqConstantCache,
+    StochasticDiffEqMutableCache,
+    StochasticDiffEqConstantCache,
+    alg_order,
+    alg_cache,
+    initialize!,
+    perform_step!,
+    # trivial_limiter!,
+    # constvalue,
+    @muladd,
+    @unpack,
+    @cache,
+    @..
 # using NCDatasets: NCDataset, dimnames, NCDatasets
 # export NCDataset, dimnames
 # include("core.jl") # this file now also has export statements
 include("GPUKernel.jl")
+include("SDEalg/BAOABGPU.jl")
+include("Texture.jl")
 include("leapfrog.jl")
 include("ini.jl")
 include("solver.jl")

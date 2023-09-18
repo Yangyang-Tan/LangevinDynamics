@@ -1,7 +1,8 @@
-using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles
-@time @quickactivate :LangevinDynamics
-
-
+using Distributed
+using DrWatson, Plots,CurveFit,DifferentialEquations,CUDA,DelimitedFiles,Random
+addprocs(length(devices()))
+@everywhere using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles,Random
+@everywhere @time @quickactivate :LangevinDynamics
 
 saved_values = SavedValues(Float32, Any)
 # cb = SavingCallback(
@@ -26,7 +27,7 @@ cb = SavingCallback(
     save_start = true
 )
 function ggprime(du,u, p, t)
-  du .= 0f0 *u
+  du .= 0f0
 end
 @time sol_1D_SDE = solve(
     langevin_3d_tex_SDE_prob(;
@@ -137,18 +138,20 @@ cb = SavingCallback(
 
 @time sol_1D_SDE = solve(
     langevin_3d_SDE_prob(;
-        γ = 2.0f0,
+        γ = 450.0f0,
         m2 = -1.0f0,
         λ = 5.0f0,
         J = 0.0f0,
-        tspan = (0.0f0, 200.0f0),
-        T = 100.0f0/197.33f0,
-        para=taylordata[99],
-        u0fun=x ->cat(CUDA.fill(0.6f0,32,32,32,2^9,1),CUDA.fill(0f0, 32,32,32,2^9,1),dims=5),
+        tspan = (0.0f0, 15.0f0),
+        T = 170.0f0/197.33f0,
+        para=taylordata[169],
+        u0fun=x ->cat(CUDA.fill(0.6f0,32,32,32,2^5,1),CUDA.fill(0f0, 32,32,32,2^5,1),dims=5),
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     ),
     [
-        SOSRA(),
+    SimplifiedEM(),
+    EM(),
+    SOSRA(),
         SMEB(),
         SRA1(),
         SRA(),
@@ -158,30 +161,55 @@ cb = SavingCallback(
         # ImplicitRKMil(),
         SOSRI(),
         PCEuler(ggprime),
-    ][end],
+    ][7],
     EnsembleSerial();
     # dtmax = 0.01f0,
     # split=true,
     trajectories = 1,
-    dt=0.02f0,
-    saveat = 0.0:50.0:200.0,
-    # save_everystep = false,
+    # dt=0.05f0,
+    saveat = 0.0:0.2:15.0,
+    save_everystep = false,
     save_start=true,
     # save_end=false,
     # dense = false,
     # save_on=false,
     # initialize_save=false,
     calck=false,
-    # callback=cb,
-    abstol = 1e-1,
-    reltol = 1e-1,
+    callback=cb,
+    abstol = 1e-0,
+    reltol = 1e-0,
 )
 
+plot!(saved_values.t[1:end],saved_values.saveval[1:end])
 
+
+
+u0_1 = fill(0.6f0, 32, 32, 32, 2^15)
+v0_1 = fill(0f0, 32, 32, 32, 2^15)
+CUDA.@time sol_3D_SDE = langevin_3d_SDE_Simple_prob(;
+    γ = 2.0f0,
+    T = 170.0f0 / 197.33f0,
+    para = taylordata[1],
+    u0=u0_1,
+    v0=v0_1,
+    tspan=(0f0,20f0),
+    dt=0.1f0,
+    # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
+)
+GC.gc(true)
+CUDA.reclaim()
+
+4*3/1000
+@btime CUDA.@sync lmul!(2f0, $u0_1)
+
+@btime CUDA.@sync axpy!(1.0f0, $v0_1, $u0_1)
+
+14.263*6
 
 sol_1D_SDE[1]
-asdata=ash(vec(sol_1D_SDE[1][:,:,:,:,1,2]),m=5,rng=-1:0.01:1)
-plot(asdata2; hist=false)
+asdata=ash(vec(sol_1D_SDE[end][:,:,:,:,1,2]),m=5,rng=-0.5:0.005:0.5)
+asdata2 = ash(vec(Array(u0_1)), m = 5, rng = -0.5:0.005:0.5)
+plot!(asdata2; hist=false)
 plot(asdata; hist=false)
 plot(asdata.rng,asdata.density)
 collect(asdata.rng)

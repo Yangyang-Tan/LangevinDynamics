@@ -128,5 +128,69 @@ t_it2 = @belapsed begin
     langevin_iso_loop_GPU($du, $u0_GPU, $p, 0.0f0)
     synchronize()
 end
-using CUDA
-using CUDA.CUDAKernels
+using CUDA,LinearAlgebra,BenchmarkTools
+device!(0)
+nx = ny = 2^5
+nz=2^5
+nk=2^7
+A = CUDA.zeros(Float32, nx, ny,nz,nk);
+B = CUDA.rand(Float32, nx, ny, nz,nk);
+t_it1 =@belapsed CUDA.@sync copyto!($A, $B)
+t_it2 = @belapsed CUDA.@sync axpy!(2f0,$A, $B)
+T_tot1 = 2 * 1 / 1e9 * nx * ny*nz*nk * sizeof(Float32) / t_it1
+@elapsed CUDA.@sync axpy!(2.0f0, A, B)
+nx = ny = 2^12
+A = CUDA.zeros(Float32, nx, ny);
+B = CUDA.rand(Float32, nx, ny);
+t_it3 = @belapsed CUDA.@sync copyto!($A, $B)
+T_tot3 = 2 * 1 / 1e9 * nx * ny * sizeof(Float32) / t_it3
+
+
+
+
+
+
+@time for i = 1:100000
+    CUDA.@sync copyto!(A, B)
+end
+T_tot = 10000*2*1/1e9*nx*ny*sizeof(Float32)/t_it
+
+@inbounds function memcopy_KP!(A,B,C)
+    ix = (blockIdx().x-1) * blockDim().x + threadIdx().x
+    iy = (blockIdx().y-1) * blockDim().y + threadIdx().y
+    du1[ix,iy] = dutmp[ix,iy]+dt
+    return nothing
+end
+max_threads  = attribute(device(),CUDA.DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
+thread_count = []
+throughputs  = []
+for pow = Int(log2(32)):Int(log2(max_threads))
+    threads = (2^pow, 1)
+    blocks  = (nx÷threads[1], ny)
+    t_it = @belapsed begin @cuda blocks=$blocks threads=$threads memcopy_KP!($A, $B); synchronize() end
+    T_tot = 2*1/1e9*nx*ny*sizeof(Float32)/t_it
+    push!(thread_count, prod(threads))
+    push!(throughputs, T_tot)
+    println("(threads=$threads) T_tot = $(T_tot)")
+end
+thread_count = []
+throughputs = []
+for pow = 0:Int(log2(max_threads / 32))
+    threads = (32, 2^pow)
+    blocks = (nx ÷ threads[1], ny ÷ threads[2])
+    t_it = @belapsed begin
+        @cuda blocks = $blocks threads = $threads memcopy_KP!($A, $B)
+        synchronize()
+    end
+    T_tot = 2 * 1 / 1e9 * nx * ny * sizeof(Float32) / t_it
+    push!(thread_count, prod(threads))
+    push!(throughputs, T_tot)
+    println("(threads=$threads) T_tot = $(T_tot)")
+end
+
+
+T_tot_max, index = findmax(throughputs)
+threads = (32, thread_count[index]÷32)
+blocks  = (nx÷threads[1], ny÷threads[2])
+t_it = @belapsed begin @cuda blocks=$blocks threads=$threads memcopy_triad_KP!($A, $B, $C, $s); synchronize() end
+T_tot = 2*1/1e9*nx*ny*sizeof(Float64)/t_it

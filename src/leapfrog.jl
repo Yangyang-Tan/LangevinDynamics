@@ -16,7 +16,7 @@ function update_3d_leapfrog_langevin!(ddσ,dσ, σ, fun, γ, m2, λ, J)
         xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
         yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
         zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
-        @inbounds dσ[x, y, z, k] = σ[x, y, z, k]
+        # @inbounds dσ[x, y, z, k] = σ[x, y, z, k]
         @inbounds ddσ[x, y, z, k] =
             (
                 σ[xp1, y, z, k] +
@@ -61,7 +61,7 @@ function U_kernel!(U, σ, fun)
                 σ[x, ym1, z, k] +
                 σ[x, y, zp1, k] +
                 σ[x, y, zm1, k]
-            )*σ[x, y, z, k]/(2*dx^2) + fun(σ[x, y, z, k])
+            )*0*σ[x, y, z, k]/(2*dx^2) + fun(σ[x, y, z, k])
     end
     #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
     #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]

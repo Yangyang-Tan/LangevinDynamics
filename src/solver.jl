@@ -291,34 +291,7 @@ export langevin_3d_tex_SDE_prob
 
 
 
-struct TaylorParameters{T}
-    λ1::T
-    λ2::T
-    λ3::T
-    λ4::T
-    λ5::T
-    ρ0::T
-    c::T
-end
 
-TaylorParameters(λ::Matrix) = TaylorParameters.(λ[:,1], λ[:,2], λ[:,3], λ[:,4], λ[:,5], λ[:,6], λ[:,7])
-TaylorParameters(λ::Array) = TaylorParameters(λ[1], λ[2], λ[3], λ[4], λ[5], λ[6], λ[7])
-
-TaylorParameters(T::DataType,λ::Array)=TaylorParameters(T.(λ))
-
-
-
-export TaylorParameters
-
-
-function funout(λ::TaylorParameters)
-    σ ->
-        σ * λ.λ1 +
-        σ * (-λ.ρ0 + σ^2 / 2) * λ.λ2 +
-        (σ * (-λ.ρ0 + σ^2 / 2)^2 * λ.λ3) / 2 +
-        (σ * (-λ.ρ0 + σ^2 / 2)^3 * λ.λ4) / 6 +
-        (σ * (-λ.ρ0 + σ^2 / 2)^4 * λ.λ5) / 24 - λ.c
-end
 function langevin_3d_SDE_prob(
     ODEfun=langevin_3d_loop_GPU;
     u0fun=(i) -> CUDA.randn(myT, N,M,2),
@@ -366,6 +339,72 @@ function langevin_3d_SDE_prob(
     )
 end
 export langevin_3d_SDE_prob
+
+
+
+
+function langevin_3d_SDE_Simple_prob(;
+    u0 = error("u0 not provided"),
+    v0 = error("v0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt=0.1f0,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    Ufun = funout_cut2(para)
+    # output_func(sol, i) = i
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    # p = myT.((γ, m2, λ, J))
+    ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
+    println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+    solve(
+        sdefun,
+        SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T))/2));
+        dt = dt,
+        fun=Ufun,
+        args...,
+    )
+end
+export langevin_3d_SDE_Simple_prob
+
+
+function langevin_3d_Ising_Simple_prob(;
+    u0 = error("u0 not provided"),
+    v0 = error("v0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt = 0.1f0,
+    args...,
+)
+
+    Ufun(x)=-x/2 +x^3/3
+    ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
+    println("noise=", sqrt(T))
+    solve(
+        sdefun,
+        SimpleBAOABGPUIsing(eta = γ, noise = sqrt(T));
+        dt = dt,
+        fun=Ufun,
+        args...,
+    )
+end
+export langevin_3d_Ising_Simple_prob
 
 
 function langevin_3d_ODE_prob(

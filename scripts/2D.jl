@@ -171,3 +171,5 @@ tempv2=wload(datadir("sims", "NM=64_Nx=64.jld2"))["tempv"]
 
 
 plot([mean(tempv[1][t][2].*tempv[1][1][1]-tempv[1][1][2].*tempv[1][t][1]) for t in 1:10001])
+
+1
