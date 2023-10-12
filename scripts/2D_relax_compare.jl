@@ -62,7 +62,7 @@ cb = SavingCallback(
         m2 = -1.0f0,
         λ = 1.0f0,
         J = 0.0f0,
-        tspan = (0.0f0, 1000.0f0),
+        tspan = (0.0f0, 200.0f0),
         T = 5.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
@@ -91,6 +91,7 @@ cb = SavingCallback(
     reltol = 1e-1,
 )
 
+@tagsave(datadir("sim", "2D_relax_compare", "randini.jld2"), @strdict saved_values)
 
 
 
