@@ -12,7 +12,7 @@ cb = SavingCallback(
         return [mean(ϕ), var(ϕ)]
     end,
     saved_values;
-    saveat = 0.0:0.2:200.0,
+    saveat = 0.0:0.2:400.0,
 )
 
 
@@ -62,7 +62,7 @@ cb = SavingCallback(
         m2 = -1.0f0,
         λ = 1.0f0,
         J = 0.0f0,
-        tspan = (0.0f0, 200.0f0),
+        tspan = (0.0f0, 400.0f0),
         T = 5.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
