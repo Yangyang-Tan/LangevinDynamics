@@ -40,7 +40,7 @@ phiconfig_T50=sol_SDE[1][:, :, :, :, 2]
         T=50.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
-        u0fun=x ->1.0f0.+CUDA.randn(64,64,2048,2),
+        u0fun=x ->1.0f0.+CUDA.randn(64,64,4096,2),
     ),
     [SOSRA(),ImplicitEM(),SImplicitMidpoint(),ImplicitRKMil(),SKSROCK(),SRA3(),SOSRI()][1],
     EnsembleSerial();
@@ -52,7 +52,7 @@ phiconfig_T50=sol_SDE[1][:, :, :, :, 2]
     save_start=true,
     save_end=true,
     dense=false,
-    callback=cb,
+    # callback=cb,
     abstol=1e-1,
     reltol=1e-1,
 )

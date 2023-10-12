@@ -66,7 +66,7 @@ cb = SavingCallback(
         T = 5.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
-        u0fun = x -> 1.0f0 .+ CUDA.randn(64, 64, 4096, 2),
+        u0fun = x -> 1.0f0 .+ CUDA.randn(64, 64, 4096*2, 2),
     ),
     [
         SOSRA(),
@@ -93,7 +93,8 @@ cb = SavingCallback(
 
 @tagsave(datadir("sim", "2D_relax_compare", "randini.jld2"), @strdict saved_values)
 
-
+using JLD2
+save_obe
 
 
 plot(saved_values.t, stack(saved_values.saveval)[1, :])
