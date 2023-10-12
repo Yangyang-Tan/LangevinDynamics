@@ -14,9 +14,9 @@ end
 
 
 CUDA.device!(0)
-u0_1 = CUDA.fill(1f0, 32, 32, 32, 2^8)
-u0_1 = CUDA.randn(32, 32, 32, 2^8)
-v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^8)
+u0_1 = CUDA.fill(1f0, 128, 128, 128, 2^8)
+u0_1 = CUDA.randn(128, 128, 128, 2^8)
+v0_1 = CUDA.fill(0.0f0, 128, 128, 128, 2^8)
 u0_1_g=0
 @time for i in 1:2000
     CUDA.@sync randn!(u0_1_g)

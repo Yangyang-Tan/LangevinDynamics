@@ -255,6 +255,33 @@ function update_2d_langevin!(dσ, σ, γ, m2, λ, J)
 end
 export update_2d_langevin!
 
+
+
+function update_2d_pure_langevin_nonlocal!(dσ, σ,γσ, m2, λ, J)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    N = size(σ, 1)
+    M = size(σ, 3)
+    # M=blockDim().z *gridDim().z
+    if (i > 0 && i <= N && j > 0 && j <= N && k > 0 && k <= M)
+        ip1, im1, jp1, jm1 = limitbound(i + 1, N),
+        limitbound(i - 1, N),
+        limitbound(j + 1, N),
+        limitbound(j - 1, N)
+        @inbounds dσ[i, j, k, 1] = σ[i, j, k, 2]
+        @inbounds dσ[i, j, k, 2] =
+            (
+                σ[im1, j, k, 1] + σ[ip1, j, k, 1] + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
+                4 * σ[i, j, k, 1]
+            ) - δUδσ(σ[i, j, k, 1]; m2 = m2, λ = λ, J = J) - γσ[i, j, k]
+        # @inbounds dσ[i, j] =i+j
+    end
+    return nothing
+end
+export update_2d_pure_langevin_nonlocal!
+
+
 # function update_iso_langevin!(dσ, σ, d, γ, m2, λ, J)
 #     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 #     k = (blockIdx().y - 1) * blockDim().y + threadIdx().y
@@ -553,13 +580,45 @@ export langevin_1d_loop_GPU
 function langevin_2d_loop_GPU(dσ, σ, p, t)
     γ, m2, λ, J = p
     # alpha = alpha / dx^2
-    threads = (32, 32, 1)
+    threads = (16, 16, 4)
     N = size(σ, 1)
     M = size(σ, 3)
     blocks = cld.((N, N, M), threads)
     @cuda blocks = blocks threads = threads update_2d_langevin!(dσ, σ, γ, m2, λ, J)
 end
 export langevin_2d_loop_GPU
+
+
+function langevin_2d_loop_nonlocal_GPU(dσ, σ, γσ_cache, p, Zt_fft, u_2D_cache)
+    γσ_cache .= @view σ[:, :, :, 2]
+    fastconv(γσ_cache, Zt_fft, u_2D_cache; dims = 1:2)
+    m2, λ, J = p
+    # alpha = alpha / dx^2
+    threads = (16, 16, 4)
+    N = size(σ, 1)
+    M = size(σ, 3)
+    blocks = cld.((N, N, M), threads)
+    @cuda blocks = blocks threads = threads update_2d_pure_langevin_nonlocal!(
+        dσ,
+        σ,
+        γσ_cache,
+        m2,
+        λ,
+        J,
+    )
+end
+export langevin_2d_loop_nonlocal_GPU
+
+function fastconv(u, Z, u_2D_catch; dims = 1:3)
+    CUDA.@sync copy!(u_2D_catch, u)
+    CUDA.@sync fft!(u_2D_catch, dims)
+    CUDA.@sync u_2D_catch .= u_2D_catch .* Z
+    CUDA.@sync ifft!(u_2D_catch, dims)
+    CUDA.@sync u .= real.(u_2D_catch)
+    return nothing
+    # CUDA.@sync copy!(u, a_2D_catch)
+end
+export fastconv
 
 # function langevin_iso_loop_GPU(dσ, σ, p, t)
 #     d, γ, m2, λ, J = p

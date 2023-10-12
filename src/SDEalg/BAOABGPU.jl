@@ -441,18 +441,18 @@ end
         dutmp1 = @view dutmp[:, :, :, 1+s*M:M+s*M]
         du11 = @view du1[:, :, :, 1+s*M:M+s*M]
         u11 = @view u1[:, :, :, 1+s*M:M+s*M]
-        for i = 3:9*n÷10
+        for i = 3:n
             f1(dutmp1, u11)
             axpy2!(c1, c2 * c3, dt / 2, dW1, dutmp1, du11, u11, M1, n)
             CUDA.randn!(dW1)
             m_1[i], m_2[i] = (m_1[i], m_2[i]) .+ (savefun(u11) ./ N_scale)
         end
-        for i2 in (9 * n ÷ 10)+1:n
-            f1(dutmp1, u11)
-            axpy2!(c1, c2 * c3, dt / 2, dW1, dutmp1, du11, u11, M1, n)
-            CUDA.randn!(dW1)
-            m_1[i2], m_2[i2] =(m_1[i2], m_2[i2]).+(savefun(u11) ./ N_scale)
-        end
+        # for i2 in (9 * n ÷ 10)+1:n
+        #     f1(dutmp1, u11)
+        #     axpy2!(c1, c2 * c3, dt / 2, dW1, dutmp1, du11, u11, M1, n)
+        #     CUDA.randn!(dW1)
+        #     m_1[i2], m_2[i2] =(m_1[i2], m_2[i2]).+(savefun(u11) ./ N_scale)
+        # end
     end
 
     CUDA.@sync f1(dutmp, u1)

@@ -3,5 +3,19 @@
     "--optimize=3"
     ],
     "julia.persistentSession.enabled": true,
-    "julia.persistentSession.tmuxSessionName": "julia_vscode_langevin"
+    "julia.persistentSession.tmuxSessionName": "julia_vscode_langevin",
+    "julia.completionmode": "import",
+    "julia.lint.missingrefs": "symbols",
+    "julia.lint.modname": true,
+    "julia.lint.pirates": true,
+    "julia.lint.typeparam": true,
+    "julia.lint.useoffuncargs": true,
+    "julia.showInlayHints": true,
+    "julia.showRuntimeDiagnostics": true,
+    "julia.lint.nothingcomp": true,
+    "julia.lint.run": true,
+    "julia.lint.lazy": true,
+    "julia.lint.iter": true,
+    "julia.lint.datadecl": true,
+    "julia.lint.constif": true
 }

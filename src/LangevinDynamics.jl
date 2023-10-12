@@ -1,7 +1,7 @@
 module LangevinDynamics
 
 using Reexport
-@reexport using LinearAlgebra, CUDA,Random,AverageShiftedHistograms,DifferentialEquations,StatsBase
+@reexport using LinearAlgebra, CUDA,Random,DifferentialEquations,StatsBase,FFTW
 import DifferentialEquations.StochasticDiffEq:
     # OrdinaryDiffEqAlgorithm,
     # OrdinaryDiffEqMutableCache,

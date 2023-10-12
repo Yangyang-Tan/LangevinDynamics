@@ -1,28 +1,8 @@
 using DrWatson, Plots, DifferentialEquations,CUDA
 @time @quickactivate :LangevinDynamics
-langevin_2d_ODE_prob()
 
-CUDA.reclaim()
-GC.gc(true)
 
-@time sol_GPU = solve(
-    langevin_2d_ODE_prob(;
-        η=100.0,
-        σ0=0.2,
-        h=0.2,
-        tspan=(0.0f0, 10.0f0),
-        # u0fun=x -> CUDA.fill(5.0f0,LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M),
-        u0fun=x ->
-            CUDA.randn(Float32, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M),
-    ),
-    Tsit5(),
-    EnsembleSerial();
-    trajectories=1,
-    saveat=0.0:0.2:10.0,
-    save_everystep=false,
-    abstol=1e-5,
-    reltol=1e-5,
-)
+
 saved_values = SavedValues(Float32, Any)
 # cb = SavingCallback(
 #     (u, t, integrator) -> reshape(
@@ -32,16 +12,25 @@ saved_values = SavedValues(Float32, Any)
 #     saved_values;
 #     # saveat=0.0:2.0:1500.0,
 # )
-
+# cumulant(tempv,2)
 cb = SavingCallback(
     (u, t, integrator) -> begin
         # u_c=Array(u);
-        ϕ=[mean(u[:,:,i,1]) for i in 1:size(u)[3]];
-        return mean(ϕ)
+        ϕ=abs.([mean(u[:,:,i,1]) for i in 1:size(u)[3]]);
+        return [mean(ϕ), var(ϕ)]
     end,
     saved_values;
-    saveat=0.0:0.2:800.0,
+    saveat=0.0:1.0:50.0,
 )
+
+phiconfig_T50=sol_SDE[1][:, :, :, :, 2]
+
+@tagsave(datadir("sim", "phiconfig_T50.jld2"), @strdict phiconfig_T50)
+
+
+
+datadir("sim", "ds.jld2")
+
 
 @time sol_SDE = solve(
     langevin_2d_SDE_prob(;
@@ -49,11 +38,11 @@ cb = SavingCallback(
         m2=-1.0f0,
         λ=1.0f0,
         J=0.0f0,
-        tspan=(0.0f0, 400.0f0),
-        T=2.0f0,
+        tspan=(0.0f0, 50.0f0),
+        T=50.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
-        u0fun=x ->1.0f0.+CUDA.randn(LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
+        u0fun=x ->1.0f0.+CUDA.randn(64,64,2048,2),
     ),
     [SOSRA(),ImplicitEM(),SImplicitMidpoint(),ImplicitRKMil(),SKSROCK(),SRA3(),SOSRI()][1],
     EnsembleSerial();
@@ -69,6 +58,11 @@ cb = SavingCallback(
     abstol=1e-1,
     reltol=1e-1,
 )
+
+
+plot(saved_values.t, stack(saved_values.saveval)[1, :])
+
+
 
 function getM(T)
     saved_values = SavedValues(Float32, Any)
