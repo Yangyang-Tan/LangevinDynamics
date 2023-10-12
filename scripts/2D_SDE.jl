@@ -29,8 +29,6 @@ phiconfig_T50=sol_SDE[1][:, :, :, :, 2]
 
 
 
-datadir("sim", "ds.jld2")
-
 
 @time sol_SDE = solve(
     langevin_2d_SDE_prob(;
