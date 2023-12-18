@@ -115,6 +115,10 @@ struct SimpleBAOABGPU_64{T} <: StochasticDiffEqAlgorithm
     eta::T
     noise::T
 end
+struct SimpleBAOABGPU_32{T} <: StochasticDiffEqAlgorithm
+    eta::T
+    noise::T
+end
 struct SimpleBAOABGPUIsing{T} <: StochasticDiffEqAlgorithm
     eta::T
     noise::T
@@ -139,6 +143,9 @@ export SimpleBAOABGPU
 SimpleBAOABGPU_64(; eta = 1.0, noise = error("noise not provided")) =
     SimpleBAOABGPU_64(eta, noise)
 export SimpleBAOABGPU_64
+SimpleBAOABGPU_32(; eta = 1.0, noise = error("noise not provided")) =
+    SimpleBAOABGPU_32(eta, noise)
+export SimpleBAOABGPU_32
 
 
 SimpleBAOABGPUIsing(; eta = 1.0, noise = error("noise not provided")) =
@@ -427,6 +434,56 @@ end
 # end
 
 
+@muladd function DiffEqBase.solve(
+    prob::SimpleSDEProblem,
+    alg::SimpleBAOABGPU_32,
+    args...;
+    dt = error("dt required for SimpleEM"),
+    savefun::Function = x -> nothing,
+    fun = error("fun required for SimpleEM"),
+)
+    GC.gc(true)
+    CUDA.reclaim()
+    f1 = prob.f1
+    # f2 = prob.f.f2
+    # g = prob.g
+    tspan = prob.tspan
+    p = prob.p
+    du1 = copy(prob.v0)
+    u1 = copy(prob.u0)
+    dW = zero(u1)
+    dutmp = copy(prob.u0)
+
+
+    CUDA.@sync randn!(dW)
+    c1 = exp(-alg.eta * dt)
+    c2 = sqrt(1 - c1^2)
+    c3 = alg.noise
+    @inbounds begin
+        n = Int((tspan[2] - tspan[1]) / dt) + 1
+        t = [tspan[1] + i * dt for i = 0:(n-1)]
+        sqdt = sqrt(dt)
+    end
+    m_1 = zero(t)
+    m_2 = zero(t)
+    m_1[1] = mean(u1)
+    CUDA.@sync f1(dutmp, u1)
+    for i = 2:n
+        # B
+        CUDA.@sync axpy!(dt / 2, dutmp, du1)
+        # A
+        CUDA.@sync axpy!(dt / 2, du1, u1)
+        # O
+        CUDA.@sync axpby!(c2 * c3, dW, c1, du1)
+        # A
+        CUDA.@sync axpy!(dt / 2, du1, u1)
+        CUDA.@sync m_1[i] = mean(u1)
+        CUDA.@sync dW1 = CUDA.randn(size(u1, 1))
+        CUDA.@sync f1(dutmp, u1)
+        CUDA.@sync axpy!(dt / 2, dutmp, du1)
+    end
+    return [m_1]
+end
 
 @muladd function DiffEqBase.solve(
     prob::SimpleSDEProblem,

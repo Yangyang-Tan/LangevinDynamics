@@ -29,7 +29,7 @@
 end
 @everywhere function eqcd_relaxtime_datasaver(
     i::Int,#muB
-    j::Int,
+    j::Int,#Temperature
     u0::AbstractArray{Float32,4},
     v0::AbstractArray{Float32,4},
 )
@@ -40,14 +40,14 @@ end
         para = qcdmodel[j].U,
         u0 = u0,
         v0 = v0,
-        tspan = (0.0f0, 20.0f0),
-        dt = 0.1f0,
+        tspan = (0.0f0, 40.0f0),
+        dt = 0.02f0,
         # savefun = meansave
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
         "sims/eqcd_relax_phase/relax_time_O5_nc/T=$j muB=$(i*10).dat",
-        [0.0f0:0.1f0:20.0f0 sol_3D_SDE[1]],
+        [0.0f0:0.02f0:40.0f0 sol_3D_SDE[1]],
     )
 end
 
@@ -77,7 +77,7 @@ sol_3D_SDE[1]
 plot!(0f0:0.02:50,sol_3D_SDE[1])
 
 
-
+1300
 
 
 plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(59,dim=2)[20].U), -0.58:0.01:0.58)
@@ -113,7 +113,7 @@ plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(1)[250].U), -1:0.01:1)
         device!(0)
         u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
         v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
-        eqcd_relaxtime_datasaver(1, 3)
+        eqcd_relaxtime_datasaver(1, 3, u0_1, v0_1)
 
         # do work on GPU 0 here
     end
@@ -121,24 +121,23 @@ plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(1)[250].U), -1:0.01:1)
         device!(1)
         u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
         v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
-        eqcd_relaxtime_datasaver(1, 2)
+        eqcd_relaxtime_datasaver(1, 2, u0_1, v0_1)
         # do work on GPU 1 here
     end
 end
-zip(workers(1:2), devices(0:1))
-(zip(workers(), devices()))
-workers()
 
-for j in 1:2:62
+
+for js in 1:2
     asyncmap((zip(2:3, 0:1))) do (p, d)
     remotecall_wait(p) do
         # @info "Worker $p uses $d"
         device!(d)
             u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
             v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
-            for i = 1:2:250
+            for i = 1:1:250
+                j = [50 63; 1 30][d+1,js]
             @info "T=$i muB=$(j*10)"
-            eqcd_relaxtime_datasaver(j+d, i,u0_1, v0_1)
+            eqcd_relaxtime_datasaver(j, i,u0_1, v0_1)
         end
     end
     end
