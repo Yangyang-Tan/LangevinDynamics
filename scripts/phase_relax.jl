@@ -1,4 +1,4 @@
-@everywhere function eqcd_potential_dataloader(i;dim=3)
+@everywhere function eqcd_potential_dataloader(i;dim=5)
     lam1data =
         readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/lam1.dat")[:, 1] .*
         1.6481059699913014^2
@@ -28,7 +28,7 @@
     return QCDModelParameters(taylordata, Tdata)
 end
 @everywhere function eqcd_relaxtime_datasaver(
-    i::Int,
+    i::Int,#muB
     j::Int,
     u0::AbstractArray{Float32,4},
     v0::AbstractArray{Float32,4},
@@ -46,7 +46,7 @@ end
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5/T=$j muB=$(i*10).dat",
+        "sims/eqcd_relax_phase/relax_time_O5_nc/T=$j muB=$(i*10).dat",
         [0.0f0:0.1f0:20.0f0 sol_3D_SDE[1]],
     )
 end

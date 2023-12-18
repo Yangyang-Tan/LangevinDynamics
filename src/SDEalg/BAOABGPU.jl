@@ -393,7 +393,8 @@ export SimpleBAOABGPUIsing
     CUDA.@sync axpy!(dt / 2, dutmp, du1)
     # CUDA.@sync axpy!(dt / 2, dutmp_1, du1_1)
     # CUDA.@sync axpy!(dt / 2, dutmp_2, du1_2)
-    return [m_1, u1,du1]
+    # return [m_1, u1,du1]
+    return [m_1]
     # sol = DiffEqBase.build_solution(prob, alg, t, u, calculate_error = false)
 end
 
