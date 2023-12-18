@@ -1,4 +1,5 @@
 using Distributed
+using DrWatson
 using DrWatson, Plots,CurveFit,DifferentialEquations,CUDA,DelimitedFiles,Random
 addprocs(length(devices()))
 @everywhere using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles,Random
@@ -19,7 +20,8 @@ cb = SavingCallback(
         # u_c=Array(u);
         # ϕ=[mean(u[:,:,i,1]) for i in 1:size(u)[3]];
         # return mean(ϕ)
-        return mean(abs.(u),dims=[1,2,3,4])[1,1,1,1,1]
+       ϕ=mean(u, dims = [1, 2, 3])[:, 1]
+        return mean(abs.(ϕ))
     end,
     saved_values;
     # saveat=0.0:0.2:100.0,
@@ -31,16 +33,16 @@ function ggprime(du,u, p, t)
 end
 @time sol_1D_SDE = solve(
     langevin_3d_tex_SDE_prob(;
-        γ = 2.2f0,
+        γ = 0.3f0,
         m2 = -1.0f0,
-        λ = 5.0f0,
+        λ = 1.0f0,
         J = 0.0f0,
-        tspan = (0.0f0, 50.0f0),
+        tspan = (0.0f0, 10.0f0),
         T = 1.0f0,
         tex=δUδσTextureTex,
         # u0fun=x ->
         #     CUDA.fill(0.1f0, 64,64,64,2^7, 2),
-        u0fun = x -> 0.1f0 *CUDA.randn(32,32,32,2^7, 2),
+        u0fun = x -> 0.1f0 *CUDA.randn(32,32,32,2^7, 2).+1.0f0,
     ),
     [
         SOSRA(),

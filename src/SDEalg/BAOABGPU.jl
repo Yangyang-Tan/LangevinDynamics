@@ -111,6 +111,10 @@ struct SimpleBAOABGPU{T} <: StochasticDiffEqAlgorithm
     eta::T
     noise::T
 end
+struct SimpleBAOABGPU_64{T} <: StochasticDiffEqAlgorithm
+    eta::T
+    noise::T
+end
 struct SimpleBAOABGPUIsing{T} <: StochasticDiffEqAlgorithm
     eta::T
     noise::T
@@ -132,6 +136,9 @@ export SimpleSDEProblem
 SimpleBAOABGPU(; eta = 1.0, noise = error("noise not provided")) =
     SimpleBAOABGPU(eta, noise)
 export SimpleBAOABGPU
+SimpleBAOABGPU_64(; eta = 1.0, noise = error("noise not provided")) =
+    SimpleBAOABGPU_64(eta, noise)
+export SimpleBAOABGPU_64
 
 
 SimpleBAOABGPUIsing(; eta = 1.0, noise = error("noise not provided")) =
@@ -386,9 +393,107 @@ export SimpleBAOABGPUIsing
     CUDA.@sync axpy!(dt / 2, dutmp, du1)
     # CUDA.@sync axpy!(dt / 2, dutmp_1, du1_1)
     # CUDA.@sync axpy!(dt / 2, dutmp_2, du1_2)
-    return [m_1, m_2]
+    return [m_1, u1,du1]
     # sol = DiffEqBase.build_solution(prob, alg, t, u, calculate_error = false)
 end
+
+
+
+
+# @muladd function perform_step!(integrator, cache::BAOABGPUCache)
+#     @unpack t, dt, sqdt, uprev, u, p, W, f = integrator
+#     @unpack utmp, dutmp, k, gtmp, noise, half, c1, c2 = cache
+#     du1 = uprev.x[1]
+#     u1 = uprev.x[2]
+
+#     # B
+#     @.. dutmp = du1 + half * dt * k
+
+#     # A
+#     @.. utmp = u1 + half * dt * dutmp
+
+#     # O
+#     integrator.g(gtmp, utmp, p, t + dt * half)
+#     @.. noise = gtmp * W.dW / sqdt
+#     @.. dutmp = c1 * dutmp + c2 * noise
+
+#     # A
+#     @.. u.x[2] = utmp + half * dt * dutmp
+
+#     # B
+#     f.f1(k, dutmp, u.x[2], p, t + dt)
+#     @.. u.x[1] = dutmp + half * dt * k
+# end
+
+
+
+@muladd function DiffEqBase.solve(
+    prob::SimpleSDEProblem,
+    alg::SimpleBAOABGPU_64,
+    args...;
+    dt = error("dt required for SimpleEM"),
+    savefun::Function = x -> nothing,
+    fun = error("fun required for SimpleEM"),
+)
+    GC.gc(true)
+    CUDA.reclaim()
+    f1 = prob.f1
+    # f2 = prob.f.f2
+    # g = prob.g
+    tspan = prob.tspan
+    p = prob.p
+    du1 = copy(prob.v0)
+    u1 = copy(prob.u0)
+    dW = zero(u1)
+    dutmp = copy(prob.u0)
+
+
+    CUDA.@sync randn!(dW)
+    # CUDA.@sync randn!(dW_1)
+    # CUDA.@sync randn!(dW_2)
+
+    c1 = exp(-alg.eta * dt)
+    c2 = sqrt(1 - c1^2)
+    c3 = alg.noise
+    @inbounds begin
+        n = Int((tspan[2] - tspan[1]) / dt) + 1
+        t = [tspan[1] + i * dt for i = 0:(n-1)]
+        sqdt = sqrt(dt)
+    end
+    m_1 = zero(t)
+    m_2 = zero(t)
+    m_1[1] = mean(u1)
+    CUDA.@sync f1(dutmp, u1)
+    for i in 2:n
+        # B
+        CUDA.@sync axpy!(dt / 2, dutmp, du1)
+        # A
+        CUDA.@sync axpy!(dt / 2, du1, u1)
+        # O
+        CUDA.@sync axpby!(c2 * c3, dW, c1, du1)
+        # A
+        CUDA.@sync axpy!(dt / 2, du1, u1)
+        CUDA.@sync m_1[i] = mean(u1)
+        CUDA.@sync dW1 = CUDA.randn(size(u1, 1))
+        CUDA.@sync f1(dutmp, u1)
+        CUDA.@sync axpy!(dt / 2, dutmp, du1)
+    end
+    # for i = 3:n
+    #         # CUDA.@sync axpy2!(c1, c2 * c3, dt / 2, dW, dutmp, du1, u1)
+    #         # m_1[i], m_2[i] = (savefun(u1) ./ N_scale) .+ (m_1[i], m_2[i])
+    #     CUDA.@sync f1(dutmp, u1)
+    #     CUDA.@sync axpy2!(c1, c2 * c3, dt / 2, dW1, dutmp, du1, u1, M, n)
+    #     CUDA.@sync CUDA.randn!(dW1)
+    #     m_1[i] = mean(u1)
+    # end
+    # CUDA.@sync f1(dutmp, u1)
+    # CUDA.@sync axpy!(dt / 2, dutmp, du1)
+    # CUDA.@sync axpy!(dt / 2, dutmp_1, du1_1)
+    # CUDA.@sync axpy!(dt / 2, dutmp_2, du1_2)
+    return [m_1, u1, du1]
+    # sol = DiffEqBase.build_solution(prob, alg, t, u, calculate_error = false)
+end
+
 
 
 @muladd function DiffEqBase.solve(

@@ -1,14 +1,14 @@
-# using DelimitedFiles,Dierckx
+using DelimitedFiles,Dierckx
 
-# Uσ_CPU_fun = Spline1D(
-#     readdlm("data/phi.dat")[:, 1] ./ (197.33),
-#     (readdlm("data/V.dat")[:, 1]) ./ (197.3) .^ 4,
-# )
+Uσ_CPU_fun = Spline1D(
+    readdlm("data/phi.dat")[:, 1] ./ (197.33),
+    (readdlm("data/V.dat")[:, 1]) ./ (197.3) .^ 4,
+)
 
-# Uσ_CPU_fun = σ -> σ * (-(1 / 4) + σ^2)
-# σrng = 0.0:0.05:100
+Uσ_CPU_fun = σ -> σ * (-(1 / 4) + σ^2)
+σrng = 0.0:0.05:100
 
-# δUδσTextureMem = CuTextureArray(Float32.(Uσ_CPU_fun.(σrng)))
+δUδσTextureMem = CuTextureArray(Float32.(Uσ_CPU_fun.(σrng)))
 
 
 # δUδσTextureMem = CuTextureArray(Float32.(derivative(Uσ_CPU_fun, σrng)))
@@ -188,6 +188,72 @@ function funout_cut2(λ::TaylorParameters; α = 100.0f0)
         ) / 3840
 end
 
+
+
+function funout_cut2_64(λ::TaylorParameters; α = 100.0)
+    σ ->
+        (
+            -3840 * λ.c + 3840 * σ * λ.λ1 + 1920 * σ * λ.λ2 * (σ^2 - 2 * λ.ρ0) -
+            80 *
+            σ *
+            λ.λ4 *
+            (σ^2 - 2 * λ.ρ0)^3 *
+            (
+                -1 +
+                logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                logisticsigmoid(-1/ 2 * (α * (σ^2 + 2 * λ.ρ0)))
+            ) -
+            10 *
+            σ *
+            λ.λ5 *
+            (σ^2 - 2 * λ.ρ0)^4 *
+            (
+                -1 +
+                logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0)))
+            ) -
+            480 *
+            σ *
+            (σ^2 - 2 * λ.ρ0)^2 *
+            (
+                -λ.λ3 +
+                (-78 + λ.λ3) * logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                (-78 + λ.λ3) * logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0)))
+            ) +
+            80 *
+            α *
+            σ *
+            (-78 + λ.λ3) *
+            (σ^2 - 2 * λ.ρ0)^3 *
+            (
+                -logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2)^2 +
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0))) -
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0)))^2
+            ) +
+            10 *
+            α *
+            σ *
+            λ.λ4 *
+            (σ^2 - 2 * λ.ρ0)^4 *
+            (
+                -logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2)^2 +
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0))) -
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0)))^2
+            ) +
+            α *
+            σ *
+            λ.λ5 *
+            (σ^2 - 2 * λ.ρ0)^5 *
+            (
+                -logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2) +
+                logisticsigmoid((α * (σ^2 - 2 * λ.ρ0)) / 2)^2 +
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0))) -
+                logisticsigmoid(-1 / 2 * (α * (σ^2 + 2 * λ.ρ0)))^2
+            )
+        ) / 3840
+end
 
 
 function Uσfunout(λ::TaylorParameters)

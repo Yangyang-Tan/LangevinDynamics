@@ -287,7 +287,7 @@ export langevin_0d_tex_SDE_prob
 #     )
 # end
 # export langevin_iso_SDE_prob
-global ct = 0
+# global ct = 0
 
 function langevin_3d_tex_SDE_prob(
     ODEfun = langevin_3d_tex_loop_GPU;
@@ -403,7 +403,8 @@ function langevin_3d_SDE_Simple_prob(;
     # u0 = init_langevin_2d(xyd_brusselator)
 
     mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
-    Ufun = funout_cut2(para)
+    # Ufun = funout_cut2(para)
+    Ufun = funout(para)
     # output_func(sol, i) = i
     # output_func(sol, i) = (begin
     #     ar=Array(sol)[:,1,1,:]
@@ -428,6 +429,86 @@ end
 export langevin_3d_SDE_Simple_prob
 
 
+function langevin_3d_SDE_Simple_prob2(;
+    u0 = error("u0 not provided"),
+    v0 = error("v0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt = 0.1f0,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    Ufun = funout_cut2_64(para)
+    # Ufun = funout(para)
+
+    # output_func(sol, i) = i
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    # p = myT.((γ, m2, λ, J))
+    ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
+    println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+    solve(
+        sdefun,
+        SimpleBAOABGPU_64(eta = γ, noise = 0.0*sqrt(mσ * coth(mσ / (2 * T)) / 2));
+        dt = dt,
+        fun = Ufun,
+        args...,
+    )
+end
+export langevin_3d_SDE_Simple_prob2
+
+
+
+function langevin_3d_SDE_Simple_prob3(;
+    u0 = error("u0 not provided"),
+    v0 = error("v0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt = 0.1f0,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    # Ufun = funout_cut2_64(para)
+    Ufun = funout(para)
+    # output_func(sol, i) = i
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    # p = myT.((γ, m2, λ, J))
+    ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
+    println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+    solve(
+        sdefun,
+        SimpleBAOABGPU_64(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
+        dt = dt,
+        fun = Ufun,
+        args...,
+    )
+end
+export langevin_3d_SDE_Simple_prob3
+
+
 function langevin_3d_Ising_Simple_prob(;
     u0 = error("u0 not provided"),
     v0 = error("v0 not provided"),
@@ -439,7 +520,7 @@ function langevin_3d_Ising_Simple_prob(;
     args...,
 )
 
-    Ufun(x) = -x / 2 + x^3 / 3
+    Ufun(x) = -x + x^3 / 6
     ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
     sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
     println("noise=", sqrt(T))

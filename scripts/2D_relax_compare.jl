@@ -24,7 +24,7 @@ cb = SavingCallback(
         m2 = -1.0f0,
         λ = 1.0f0,
         J = 0.0f0,
-        tspan = (0.0f0, 200.0f0),
+        tspan = (0.0f0, 400.0f0),
         T = 5.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
@@ -66,7 +66,7 @@ cb = SavingCallback(
         T = 5.0f0,
         # u0fun=x ->
         #     CUDA.fill(5.0f0, LangevinDynamics.N, LangevinDynamics.N, LangevinDynamics.M,2),
-        u0fun = x -> 1.0f0 .+ CUDA.randn(64, 64, 4096*2, 2),
+        u0fun = x -> 1.0f0 .+ CUDA.randn(128, 128, 4096, 2),
     ),
     [
         SOSRA(),

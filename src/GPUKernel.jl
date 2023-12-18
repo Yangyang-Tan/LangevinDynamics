@@ -159,7 +159,7 @@ export update_3d_langevin!
 function update_3d_simple_langevin!(dσ, σ, fun)
     N = size(σ, 1)
     # M = size(σ, 4)
-    dx = 1f0
+    dx = 1
     id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     # z = (blockIdx().z - 1) * blockDim().z + threadIdx().z
     # id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -507,7 +507,7 @@ function langevin_3d_tex_loop_GPU(dσ, σ, tex, p, t)
     # alpha = alpha / dx^2
     N = size(σ, 1)
     M = size(σ, 4)
-    threads = (512, 2)
+    threads = (32, 32)
     blocks = cld.((N^3, M), threads)
     @cuda blocks = blocks threads = threads update_3d_tex_langevin!(
         dσ,
@@ -547,8 +547,12 @@ function langevin_3d_loop_simple_GPU(dσ, σ, fun)
     # N = size(σ, 1)
     # M = size(σ, 4)
     threads = 1024
-    blocks = 2^8
-    @cuda blocks = blocks threads = threads update_3d_simple_langevin!(dσ, σ, fun)
+    blocks = 2^10
+    @cuda blocks = blocks threads = threads maxregs = 16 update_3d_simple_langevin!(
+        dσ,
+        σ,
+        fun,
+    )
 end
 export langevin_3d_loop_simple_GPU
 

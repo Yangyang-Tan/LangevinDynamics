@@ -81,8 +81,8 @@ end
 testf2(;)
 langevin_2d_ODE_prob()
 
-
-u0 = randn(Float32,64,64,64,2^11,2)
+device!(1)
+u0 = randn(Float32,64,64,64,2^12,2)
 sizeof(u0)/1024/1024/1024
 u0_GPU = CuArray(u0)
 du_GPU = similar(u0_GPU)
@@ -92,9 +92,26 @@ p = LangevinDynamics.myT.((1,-1,1,0))
 CartesianIndices((2, 2))[5]
 
 @benchmark CUDA.@sync langevin_3d_tex_loop_GPU_2($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
+using DelimitedFiles,Dierckx
+Uσ_CPU_fun = Spline1D(
+    readdlm("data/phi.dat")[:, 1] ./ (197.33),
+    (readdlm("data/V.dat")[:, 1]) ./ (197.3) .^ 4,
+)
+
+# Uσ_CPU_fun = σ -> σ * (-(1 / 4) + σ^2)
+σrng = 0.0:0.5:100
+
+δUδσTextureMem = CuTextureArray(Float32.(Uσ_CPU_fun.(σrng)))
+
+δUδσTextureMem = CuTextureArray(Float32.(derivative(Uσ_CPU_fun, σrng)))
+# # copyto!(ImlambdaTextureMem, Imlambda)
+# # copyto!(RelambdaTextureMem, Relambda)
+δUδσTextureTex = CuTexture(δUδσTextureMem;)
 
 
 @benchmark CUDA.@sync langevin_3d_tex_loop_GPU($du_GPU, $u0_GPU,δUδσTextureTex, p, 0.1f0)
+
+@benchmark CUDA.@sync langevin_3d_tex_loop_GPU($du_GPU, $u0_GPU, $δUδσTextureTex, $p, 0.1f0)
 
 
 @benchmark CUDA.@sync langevin_3d_loop_GPU(du_GPU, u0_GPU ,Uσ_CPU_fun, p, 0.1f0)

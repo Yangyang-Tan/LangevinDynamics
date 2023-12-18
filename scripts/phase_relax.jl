@@ -51,8 +51,7 @@ end
     )
 end
 
-v0_1
-writedlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/lam1.dat", 1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
+# writedlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/lam1.dat", 1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
 eqcd_potential_dataloader(2)[1].U
 u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^8)
 v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^8)
@@ -62,7 +61,7 @@ v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^8)
 eqcd_relaxtime_datasaver(5, 1, u0_1, v0_1)
 CUDA.device!(0)
 readdlm("data/eQCD_Input/eqcd_potential_data/Tem63/buffer/rho0.dat")[:, 1]
-plot(1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
+plot!(1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
 @time sol_3D_SDE = langevin_3d_SDE_Simple_prob(;
     γ = 0.001f0,
     T = eqcd_potential_dataloader(63)[250].T,
