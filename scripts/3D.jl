@@ -1,5 +1,6 @@
 using Distributed
 using DrWatson
+using CUDA
 using DrWatson, Plots,CurveFit,DifferentialEquations,CUDA,DelimitedFiles,Random
 addprocs(length(devices()))
 @everywhere using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles,Random

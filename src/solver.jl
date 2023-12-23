@@ -421,6 +421,7 @@ function langevin_3d_SDE_Simple_prob(;
     solve(
         sdefun,
         SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
+        # SimpleBAOABGPU(eta = γ, noise = sqrt(T));
         dt = dt,
         fun = Ufun,
         args...,

@@ -275,10 +275,10 @@ export SimpleBAOABGPUIsing
     # g = prob.g
     tspan = prob.tspan
     p = prob.p
-    du1 = copy(prob.v0)
-    u1 = copy(prob.u0)
-    dW = zero(u1)
-    dutmp = copy(prob.u0)
+    du1 = CuArray(prob.v0)
+    u1 = CuArray(prob.u0)
+    dW = CUDA.zero(u1)
+    dutmp = CuArray(prob.u0)
 
 
     CUDA.@sync randn!(dW)
@@ -455,7 +455,7 @@ end
     dutmp = copy(prob.u0)
 
 
-    CUDA.@sync randn!(dW)
+    CUDA.randn!(dW)
     c1 = exp(-alg.eta * dt)
     c2 = sqrt(1 - c1^2)
     c3 = alg.noise
@@ -472,13 +472,13 @@ end
         # B
         CUDA.@sync axpy!(dt / 2, dutmp, du1)
         # A
-        CUDA.@sync axpy!(dt / 2, du1, u1)
+        axpy!(dt / 2, du1, u1)
         # O
         CUDA.@sync axpby!(c2 * c3, dW, c1, du1)
         # A
         CUDA.@sync axpy!(dt / 2, du1, u1)
-        CUDA.@sync m_1[i] = mean(u1)
-        CUDA.@sync dW1 = CUDA.randn(size(u1, 1))
+        m_1[i] = mean(u1)
+        CUDA.randn!(dW)
         CUDA.@sync f1(dutmp, u1)
         CUDA.@sync axpy!(dt / 2, dutmp, du1)
     end

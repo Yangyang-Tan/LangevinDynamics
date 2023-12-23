@@ -547,8 +547,8 @@ function langevin_3d_loop_simple_GPU(dσ, σ, fun)
     # N = size(σ, 1)
     # M = size(σ, 4)
     threads = 1024
-    blocks = 2^10
-    @cuda blocks = blocks threads = threads maxregs = 16 update_3d_simple_langevin!(
+    blocks = 2^8
+    @cuda blocks = blocks threads = threads maxregs = 4 update_3d_simple_langevin!(
         dσ,
         σ,
         fun,
