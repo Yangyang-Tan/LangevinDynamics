@@ -420,9 +420,9 @@ function langevin_3d_SDE_Simple_prob(;
     println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
     solve(
         sdefun,
-        # SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
+        SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
         # SimpleBAOABGPU(eta = γ, noise = sqrt(T));
-        SimpleBAOABGPU(eta = γ, noise = 0.0f0);
+        # SimpleBAOABGPU(eta = γ, noise = 0.0f0);
         dt = dt,
         fun = Ufun,
         args...,
@@ -444,8 +444,8 @@ function langevin_3d_SDE_Simple_prob2(;
     # u0 = init_langevin_2d(xyd_brusselator)
 
     mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
-    Ufun = funout_cut2_64(para)
-    # Ufun = funout(para)
+    # Ufun = funout_cut2_64(para)
+    Ufun = funout(para)
 
     # output_func(sol, i) = i
     # output_func(sol, i) = (begin

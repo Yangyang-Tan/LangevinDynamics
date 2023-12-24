@@ -41,13 +41,38 @@ end
         u0 = u0,
         v0 = v0,
         tspan = (0.0f0, 40.0f0),
-        dt = 0.05f0,
+        dt = 0.1f0,
         # savefun = meansave
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5_nc_classical/T=$j muB=$(i*10).dat",
-        [0.0f0:0.05f0:40.0f0 sol_3D_SDE[1]],
+        "sims/eqcd_relax_phase/relax_time_O5_nc/T=$j muB=$(i*10).dat",
+        [0.0f0:0.1f0:40.0f0 sol_3D_SDE[1]],
+    )
+end
+
+#64bit
+@everywhere function eqcd_relaxtime_datasaver(
+    i::Int,#muB
+    j::Int,#Temperature
+    u0::AbstractArray{Float64,4},
+    v0::AbstractArray{Float64,4},
+)
+    qcdmodel = eqcd_potential_dataloader(i)
+    sol_3D_SDE = langevin_3d_SDE_Simple_prob2(;
+        γ = 8.0,
+        T = qcdmodel[j].T,
+        para = qcdmodel[j].U,
+        u0 = u0,
+        v0 = v0,
+        tspan = (0.0, 40.0),
+        dt = 0.02,
+        # savefun = meansave
+        # u0fun = x -> 0.1*CUDA.randn(32,32,32,2^9, 2),
+    )
+    writedlm(
+        "sims/eqcd_relax_phase/relax_time_O5_nc_hydro/T=$j muB=$(i*10).dat",
+        [0.0:0.02:40.0 sol_3D_SDE[1]],
     )
 end
 
@@ -134,8 +159,8 @@ for js in 1:2
     remotecall_wait(p) do
         # @info "Worker $p uses $d"
         device!(d)
-            u0_1 = fill(0.6f0, 32, 32, 32, 2^15)
-            v0_1 = fill(0.0f0, 32, 32, 32, 2^15)
+            u0_1 = fill(0.6f0, 32, 32, 32, 2^11)
+            v0_1 = fill(0.0f0, 32, 32, 32, 2^11)
             for i = 1:1:250
                 j = [50 1; 63 30][d+1, js]
             @info "T=$i muB=$(j*10)"
