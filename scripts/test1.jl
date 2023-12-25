@@ -1,27 +1,18 @@
-using CUDA
-function DGP(N)
-    x = range(0, 1, N^2)
-    return reshape(x, (N, N))
-end
-1
-range(0, 1, 4^2)
+plot(x->-x^2/2 + x^4 / 24,-4,4)
+using AverageShiftedHistograms
 
 
-function main(N)
-    x = CuArray(DGP(N))
-    V0 = CUDA.ones(Float32, N)
-    idx = ()
-    a = 0.5f0
-    max_iter = 100
-    iter = 0
-    tmp = x .+ a * V0'
-    while iter < max_iter
-        V1 = V0
-        tmp .= x .+ a * V1'
-        V0, idx = findmax(tmp, dims = 2)
-        iter += 1
-    end
-    return V0, idx, iter
-end
-
-@time CUDA.@sync main(2^15);
+u0_1 = fill(4f0, 32, 32, 32, 2^11)
+v0_1 = fill(0.0f0, 32, 32, 32, 2^11)
+sol_tem=langevin_3d_Ising_Simple_prob(;
+    u0 = u0_1,
+    v0 = v0_1,
+    γ = 1.0f0,
+    tspan = (0.0f0, 300.0f0),
+    T = 9.4f0,
+    dt = 0.1f0,
+)
+sol_tem[2]
+plot!(sol_tem[2]/9.5)
+v_tem=Array(sol_tem[3])
+o_tem=ash(sol_tem[3]; rng = -1:0.001:1, m = 5)

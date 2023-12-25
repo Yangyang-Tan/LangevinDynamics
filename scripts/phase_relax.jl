@@ -27,6 +27,12 @@
     )[:,1]
     return QCDModelParameters(taylordata, Tdata)
 end
+
+@everywhere function eqcd_Z0_dataloader(i)
+    readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/Zphi.dat")[:, 1] ./
+    readdlm("data/eQCD_Input/eqcd_potential_data/Tem1/buffer/Zphi.dat")[1, 1]
+end
+
 @everywhere function eqcd_relaxtime_datasaver(
     i::Int,#muB
     j::Int,#Temperature
@@ -34,8 +40,9 @@ end
     v0::AbstractArray{Float32,4},
 )
     qcdmodel=eqcd_potential_dataloader(i);
+    Z0data=Float32.(eqcd_Z0_dataloader(i));
     sol_3D_SDE = langevin_3d_SDE_Simple_prob(;
-        γ = 8.0f0,
+        γ = 8.0f0/Z0data[i],
         T = qcdmodel[j].T,
         para = qcdmodel[j].U,
         u0 = u0,
@@ -46,7 +53,7 @@ end
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5_nc/T=$j muB=$(i*10).dat",
+        "sims/eqcd_relax_phase/relax_time_O5_nc_Z0/T=$j muB=$(i*10).dat",
         [0.0f0:0.1f0:40.0f0 sol_3D_SDE[1]],
     )
 end
@@ -153,15 +160,15 @@ plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(1)[250].U), -1:0.01:1)
     end
 end
 
-[50 1; 63 30]
+
 for js in 1:2
     asyncmap((zip(2:3, 0:1))) do (p, d)
     remotecall_wait(p) do
         # @info "Worker $p uses $d"
         device!(d)
-            u0_1 = fill(0.6f0, 32, 32, 32, 2^11)
-            v0_1 = fill(0.0f0, 32, 32, 32, 2^11)
-            for i = 1:1:250
+            u0_1 = fill(0.6f0, 32, 32, 32, 2^10)
+            v0_1 = fill(0.0f0, 32, 32, 32, 2^10)
+            for i = 1:2:250
                 j = [50 1; 63 30][d+1, js]
             @info "T=$i muB=$(j*10)"
             eqcd_relaxtime_datasaver(j, i,u0_1, v0_1)

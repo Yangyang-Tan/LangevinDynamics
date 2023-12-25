@@ -406,34 +406,6 @@ export SimpleBAOABGPUIsing
 end
 
 
-
-
-# @muladd function perform_step!(integrator, cache::BAOABGPUCache)
-#     @unpack t, dt, sqdt, uprev, u, p, W, f = integrator
-#     @unpack utmp, dutmp, k, gtmp, noise, half, c1, c2 = cache
-#     du1 = uprev.x[1]
-#     u1 = uprev.x[2]
-
-#     # B
-#     @.. dutmp = du1 + half * dt * k
-
-#     # A
-#     @.. utmp = u1 + half * dt * dutmp
-
-#     # O
-#     integrator.g(gtmp, utmp, p, t + dt * half)
-#     @.. noise = gtmp * W.dW / sqdt
-#     @.. dutmp = c1 * dutmp + c2 * noise
-
-#     # A
-#     @.. u.x[2] = utmp + half * dt * dutmp
-
-#     # B
-#     f.f1(k, dutmp, u.x[2], p, t + dt)
-#     @.. u.x[1] = dutmp + half * dt * k
-# end
-
-
 @muladd function DiffEqBase.solve(
     prob::SimpleSDEProblem,
     alg::SimpleBAOABGPU_32,
@@ -565,11 +537,10 @@ end
     f1 = prob.f1
     tspan = prob.tspan
     p = prob.p
-    du1 = copy(prob.v0)
-    u1 = copy(prob.u0)
-    dW = zero(u1)
-    dutmp = copy(prob.u0)
-
+    du1 = CuArray(prob.v0)
+    u1 = CuArray(prob.u0)
+    dW = CUDA.zero(u1)
+    dutmp = CuArray(prob.u0)
 
     CUDA.@sync randn!(dW)
     c1 = exp(-alg.eta * dt)
@@ -618,7 +589,7 @@ end
 
     CUDA.@sync f1(dutmp, u1)
     CUDA.@sync axpy!(dt / 2, dutmp, du1)
-    return [m_1, m_2]
+    return [m_1, m_2,u1]
 end
 
 

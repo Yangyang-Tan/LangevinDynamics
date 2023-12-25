@@ -1,26 +1,3 @@
-
-function langevin_2d_ODE_prob(
-    ODEfun = langevin_2d_loop_GPU;
-    u0fun = (i) -> CUDA.randn(myT, N, N, M),
-    η = 10.0,
-    σ0 = 0.1,
-    h = 0.0,
-    tspan = myT.((0.0, 15.0)),
-)
-    # u0 = init_langevin_2d(xyd_brusselator)
-    u0_GPU = 1.0f0
-    function prob_func(prob, i, repeat)
-        return remake(prob; u0 = u0fun(i))
-    end
-    output_func(sol, i) = (Array(sol), false)
-    return EnsembleProblem(
-        ODEProblem(ODEfun, u0_GPU, tspan, myT.((1 / η, σ0, h, step(xyd_brusselator))));
-        prob_func = prob_func,
-        output_func = output_func,
-    )
-end
-export langevin_2d_ODE_prob
-
 function langevin_2d_SDE_prob(
     ODEfun = langevin_2d_loop_GPU;
     u0fun = (i) -> CUDA.randn(myT, N, N, M, 2),
@@ -420,8 +397,8 @@ function langevin_3d_SDE_Simple_prob(;
     println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
     solve(
         sdefun,
-        SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
-        # SimpleBAOABGPU(eta = γ, noise = sqrt(T));
+        #SimpleBAOABGPU(eta = γ, noise = sqrt(mσ * coth(mσ / (2 * T)) / 2));
+        SimpleBAOABGPU(eta = γ, noise = sqrt(T));
         # SimpleBAOABGPU(eta = γ, noise = 0.0f0);
         dt = dt,
         fun = Ufun,
@@ -510,14 +487,26 @@ function langevin_3d_SDE_Simple_prob3(;
 end
 export langevin_3d_SDE_Simple_prob3
 
-
+"""
+```julia
+u0_1 = fill(0.6f0, 32, 32, 32, 2^11)
+v0_1 = fill(0.0f0, 32, 32, 32, 2^11)
+langevin_3d_Ising_Simple_prob(;
+    u0 = u0_1,
+    v0 = v0_1,
+    γ = 1.0f0,
+    tspan = (0.0f0, 5.0f0),
+    T = 5.0f0,
+    dt = 0.1f0,
+)
+```
+"""
 function langevin_3d_Ising_Simple_prob(;
     u0 = error("u0 not provided"),
     v0 = error("v0 not provided"),
     γ = 1.0f0,
     tspan = myT.((0.0, 15.0)),
     T = 5.0f0,
-    para = para::TaylorParameters,
     dt = 0.1f0,
     args...,
 )
@@ -526,11 +515,16 @@ function langevin_3d_Ising_Simple_prob(;
     ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
     sdefun = SimpleSDEProblem(ODEfun_tex, v0, u0, tspan)
     println("noise=", sqrt(T))
+    function savefun(x::AbstractArray{T,4}) where T
+        x1=@view mean(x,dims=[1,2,3])[1,1,1,:]
+        return mean(abs.(x1)),var(abs.(x1))
+    end
     solve(
         sdefun,
         SimpleBAOABGPUIsing(eta = γ, noise = sqrt(T));
         dt = dt,
         fun = Ufun,
+        savefun=savefun,
         args...,
     )
 end
