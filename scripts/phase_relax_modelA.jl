@@ -27,7 +27,7 @@
     )[:,1]
     return QCDModelParameters(taylordata, Tdata)
 end
-
+1
 @everywhere function eqcd_Z0_dataloader(i)
     readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/Zphi.dat")[:, 1] ./
     readdlm("data/eQCD_Input/eqcd_potential_data/Tem1/buffer/Zphi.dat")[1, 1]
@@ -41,73 +41,43 @@ end
 )
     qcdmodel=eqcd_potential_dataloader(i);
     Z0data=Float32.(eqcd_Z0_dataloader(i));
-    sol_3D_SDE = langevin_3d_SDE_Simple_prob(;
-        # γ = 0.2f0/Z0data[i],
-        γ=0.2f0,
+    sol_3D_SDE = modelA_3d_SDE_Simple_prob(;
+        γ = 0.1f0/Z0data[i],
+        # γ=0.2f0,
         T = qcdmodel[j].T,
         para = qcdmodel[j].U,
         u0 = u0,
-        v0 = v0,
-        tspan = (0.0f0, 40.0f0),
-        dt = 0.05f0,
+        # v0 = v0,
+        tspan = (0.0f0, 8.0f0),
+        dt = 0.0001f0,
         # savefun = meansave
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5_nc_Z0/T=$j muB=$(i*10).dat",
-        [0.0f0:0.05f0:40.0f0 sol_3D_SDE[1]],
+        "sims/eqcd_relax_phase/relax_time_O5_nc_Z0_gamma0.2/T=$j muB=$(i*10).dat",
+        sol_3D_SDE,
     )
 end
 
-#64bit
-@everywhere function eqcd_relaxtime_datasaver(
-    i::Int,#muB
-    j::Int,#Temperature
-    u0::AbstractArray{Float64,4},
-    v0::AbstractArray{Float64,4},
-)
-    qcdmodel = eqcd_potential_dataloader(i)
-    sol_3D_SDE = langevin_3d_SDE_Simple_prob2(;
-        γ = 8.0,
-        T = qcdmodel[j].T,
-        para = qcdmodel[j].U,
-        u0 = u0,
-        v0 = v0,
-        tspan = (0.0, 40.0),
-        dt = 0.02,
-        # savefun = meansave
-        # u0fun = x -> 0.1*CUDA.randn(32,32,32,2^9, 2),
-    )
-    writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5_nc_hydro/T=$j muB=$(i*10).dat",
-        [0.0:0.02:40.0 sol_3D_SDE[1]],
-    )
-end
 
 # writedlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/lam1.dat", 1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
 eqcd_potential_dataloader(2)[1].U
-u0_1 = fill(0.6f0, 32, 32, 32, 2^15)
+u0_1 = fill(0.6f0, 32, 32, 32, 2^6)
 v0_1 = fill(0.0f0, 32, 32, 32, 2^15)
 
-
-
-eqcd_relaxtime_datasaver(5, 1, u0_1, v0_1)
-CUDA.device!(0)
-readdlm("data/eQCD_Input/eqcd_potential_data/Tem63/buffer/rho0.dat")[:, 1]
-plot!(1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
-@time sol_3D_SDE = langevin_3d_SDE_Simple_prob(;
-    γ = 8f0,
-    T = eqcd_potential_dataloader(63,dim=3)[75].T,
-    para = eqcd_potential_dataloader(63, dim = 3)[75].U,
+@time sol_3D_SDE = modelA_3d_SDE_Simple_prob(;
+    γ = 0.5f0,
+    T = eqcd_potential_dataloader(63,dim=3)[106].T,
+    para = eqcd_potential_dataloader(63, dim = 3)[106].U,
     u0 = u0_1,
-    v0 = v0_1,
-    tspan = (0.0f0, 5f0),
-    dt = 0.1f0,
+    tspan = (0.0f0, 1f0),
+    dt = 0.0001f0,
     # savefun = meansave
     # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
 )
-sol_3D_SDE[2]
-plot(0f0:0.01:40,sol_3D_SDE[1])
+
+sol_3D_SDE[:,1]
+plot!(sol_3D_SDE[:, 1], sol_3D_SDE[:, 2])
 using AverageShiftedHistograms
 v1_his_1 = Array(mean(sol_3D_SDE[2], dims = [1, 2, 3])[1, 1, 1, :])
 v1_his_1 = Array(sol_3D_SDE[2])
@@ -167,9 +137,9 @@ for js in 1:2
     remotecall_wait(p) do
         # @info "Worker $p uses $d"
         device!(d)
-            u0_1 = fill(0.6f0, 32, 32, 32, 2^10)
-            v0_1 = fill(0.0f0, 32, 32, 32, 2^10)
-            for i = 1:2:250
+            u0_1 = fill(0.6f0, 32, 32, 32, 2^8)
+            v0_1 = fill(0.0f0, 32, 32, 32, 2^8)
+            for i = 1:1:250
                 j = [50 1; 63 30][d+1, js]
             @info "T=$i muB=$(j*10)"
             eqcd_relaxtime_datasaver(j, i,u0_1, v0_1)
