@@ -5,19 +5,28 @@ Uσ_CPU_fun = Spline1D(
     (readdlm("data/V.dat")[:, 1]) ./ (197.3) .^ 4,
 )
 
-Uσ_CPU_fun = σ -> σ * (-(1 / 4) + σ^2)
+# Uσ_CPU_fun = σ -> σ * (-(1 / 4) + σ^2)
 σrng = 0.0:0.05:100
 
-δUδσTextureMem = CuTextureArray(Float32.(Uσ_CPU_fun.(σrng)))
+# δUδσTextureMem = CuTextureArray(Float32.(Uσ_CPU_fun.(σrng)))
 
 
 # δUδσTextureMem = CuTextureArray(Float32.(derivative(Uσ_CPU_fun, σrng)))
-# # copyto!(ImlambdaTextureMem, Imlambda)
-# # copyto!(RelambdaTextureMem, Relambda)
+# copyto!(ImlambdaTextureMem, Imlambda)
+# copyto!(RelambdaTextureMem, Relambda)
 # δUδσTextureTex = CuTexture(δUδσTextureMem; interpolation = CUDA.CubicInterpolation())
-# plot(derivative(Uσ_CPU_fun, σrng)[1:10])
-# sign.(CUDA.randn(10, 10))
 
+
+function TexSpline1D(x_grid::StepRangeLen, δUδσ_grid)
+    x_ini=x_grid[1]
+    x_step=x_grid[2]-x_grid[1]
+    δUδσTextureMem = CuTextureArray(δUδσ_grid)
+    δUδσTextureTex = CuTexture(δUδσTextureMem; interpolation = CUDA.CubicInterpolation())
+    function Texfun(σ)
+        δUδσTextureTex[(σ-x_ini)/x_step +1]
+    end
+end
+export TexSpline1D
 # struct Langevin3D
 #     γ::Float32
 #     m2::Float32

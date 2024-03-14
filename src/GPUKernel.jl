@@ -88,38 +88,11 @@ end
 export update_1d_tex_langevin!
 
 
-# @kernel function update_3d_tex_langevin!(dσ, σ, tex, γ, m2, λ, J)
-#     N = size(σ, 1)
-#     # M = size(σ, 2)
-#     x, y, z, k = @index(Global, NTuple)
-#     # M=blockDim().z *gridDim().z
-#     # if (i > 0 && i <= N && k > 0 && k <= M)
-#     xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
-#     yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
-#     zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
-#     @inbounds dσ[x, y, z, k, 1] = σ[x, y, z, k, 2]
-#     @inbounds dσ[x, y, z, k, 2] =
-#         (
-#             σ[xp1, y, z, k, 1] +
-#             σ[xm1, y, z, k, 1] +
-#             σ[x, yp1, z, k, 1] +
-#             σ[x, ym1, z, k, 1] +
-#             σ[x, y, zp1, k, 1] +
-#             σ[x, y, zm1, k, 1] - 6 * σ[x, y, z, k, 1]
-#         ) + 0.22f0 - sign(σ[x, y, z, k, 1]) * tex[(abs(σ[x, y, z, k, 1])/0.005f0)+1] -
-#         γ * σ[x, y, z, k, 2]
-#     #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
-#     #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]
-#     # @inbounds dσ[i, j] =i+j
-# end# end
-# export update_3d_tex_langevin!
-
-
 
 function update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
     N = size(σ, 1)
     M = size(σ, 4)
-    dx = 1f0
+    dx = 1.0f0
     id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     k = (blockIdx().y - 1) * blockDim().y + threadIdx().y
     # z = (blockIdx().z - 1) * blockDim().z + threadIdx().z
@@ -143,8 +116,7 @@ function update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
                 σ[x, ym1, z, k, 1] +
                 σ[x, y, zp1, k, 1] +
                 σ[x, y, zm1, k, 1] - 6 * σ[x, y, z, k, 1]
-            )/dx^2 - fun(σ[x, y, z, k, 1])-
-            γ * σ[x, y, z, k, 2]
+            ) / dx^2 - fun(σ[x, y, z, k, 1]) - γ * σ[x, y, z, k, 2]
     end
     #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
     #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]
@@ -175,7 +147,7 @@ function update_3d_simple_langevin!(dσ, σ, fun)
         xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
         yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
         zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
-        @inbounds dσ[x, y, z, k] =
+        @inbounds dσ[x, y, z, k] =     #dσ = -δF/δσ
             (
                 σ[xp1, y, z, k] +
                 σ[xm1, y, z, k] +
@@ -183,7 +155,7 @@ function update_3d_simple_langevin!(dσ, σ, fun)
                 σ[x, ym1, z, k] +
                 σ[x, y, zp1, k] +
                 σ[x, y, zm1, k] - 6 * σ[x, y, z, k]
-            ) / dx^2 - fun(σ[x, y, z, k])
+            ) / dx^2 - fun(σ[x, y, z, k]) #fun is δU/δσ
     end
     #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
     #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]
@@ -191,6 +163,48 @@ function update_3d_simple_langevin!(dσ, σ, fun)
     return nothing
 end
 export update_3d_simple_langevin!
+
+function update_3d_simple_tex_langevin!(dσ, σ, tex, x_ini, x_step)
+    N = size(σ, 1)
+    dx = 1
+    id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    cind = CartesianIndices(σ)
+    for i = id:blockDim().x*gridDim().x:prod(size(σ))
+        x, y, z, k = Tuple(cind[i])
+        xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
+        yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
+        zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
+        @inbounds dσ[x, y, z, k] =     #dσ = -δF/δσ
+            (
+                σ[xp1, y, z, k] +
+                σ[xm1, y, z, k] +
+                σ[x, yp1, z, k] +
+                σ[x, ym1, z, k] +
+                σ[x, y, zp1, k] +
+                σ[x, y, zm1, k] - 6 * σ[x, y, z, k]
+            ) / dx^2 - tex[(((σ[x, y, z, k] - x_ini) / x_step) +1f0)]
+    end
+    return nothing
+end
+export update_3d_simple_tex_langevin!
+
+function langevin_3d_loop_simple_tex_GPU(dσ, σ, fun, x_ini, x_step)
+    threads = 1024
+    blocks = 2^8
+    @cuda blocks = blocks threads = threads update_3d_simple_tex_langevin!(
+        dσ,
+        σ,
+        fun,
+        x_ini,
+        x_step,
+    )
+end
+export langevin_3d_loop_simple_tex_GPU
+
+
+
+
+
 
 
 
@@ -214,15 +228,17 @@ function update_3d_tex_langevin!(dσ, σ, tex, γ, m2, λ, J)
         zp1, zm1 = limitbound(z + 1, N), limitbound(z - 1, N)
         @inbounds dσ[x, y, z, k, 1] = σ[x, y, z, k, 2]
         @inbounds dσ[x, y, z, k, 2] =
-            ((
-                σ[xp1, y, z, k, 1] +
-                σ[xm1, y, z, k, 1] +
-                σ[x, yp1, z, k, 1] +
-                σ[x, ym1, z, k, 1] +
-                σ[x, y, zp1, k, 1] +
-                σ[x, y, zm1, k, 1] - 6 * σ[x, y, z, k, 1]
-            )/dx^2 + 0.22f0 - sign(σ[x, y, z, k, 1]) * tex[(abs(σ[x, y, z, k, 1])/0.05f0)+1]) -
-            γ * σ[x, y, z, k, 2]
+            (
+                (
+                    σ[xp1, y, z, k, 1] +
+                    σ[xm1, y, z, k, 1] +
+                    σ[x, yp1, z, k, 1] +
+                    σ[x, ym1, z, k, 1] +
+                    σ[x, y, zp1, k, 1] +
+                    σ[x, y, zm1, k, 1] - 6 * σ[x, y, z, k, 1]
+                ) / dx^2 + 0.22f0 -
+                sign(σ[x, y, z, k, 1]) * tex[(abs(σ[x, y, z, k, 1])/0.05f0)+1]
+            ) - γ * σ[x, y, z, k, 2]
     end
     #  + σ[i, jm1, k, 1] + σ[i, jp1, k, 1] -
     #     4 * σ[i, j, k, 1]) + 0.22f0 - sign(σ[i,k, 1])*tex[(abs(σ[i,k, 1])/0.005f0)+1] - γ * σ[i, k, 2]
@@ -257,7 +273,7 @@ export update_2d_langevin!
 
 
 
-function update_2d_pure_langevin_nonlocal!(dσ, σ,γσ, m2, λ, J)
+function update_2d_pure_langevin_nonlocal!(dσ, σ, γσ, m2, λ, J)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
     k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
@@ -294,10 +310,10 @@ export update_2d_pure_langevin_nonlocal!
 #         # limitbound(i - 1, N), limitbound(j + 1, N),
 #         # limitbound(j - 1, N)
 #         @inbounds dσ[i, k, 1] = σ[i, k, 2]
-        # @inbounds dσ[i, k, 2] =
-        #     (σ[i-1, k, 1] + σ[i+1, k, 1] - 2 * σ[i, k, 1])/(dx^2) +
-        #     (σ[i+1, k, 1] - σ[i-1, k, 1]) * (d - 1) / (2 *dx^2* (i - 1)) -
-        #     δUδσ(σ[i, k, 1]; m2 = m2, λ = λ, J = J) - γ * σ[i, k, 2]
+# @inbounds dσ[i, k, 2] =
+#     (σ[i-1, k, 1] + σ[i+1, k, 1] - 2 * σ[i, k, 1])/(dx^2) +
+#     (σ[i+1, k, 1] - σ[i-1, k, 1]) * (d - 1) / (2 *dx^2* (i - 1)) -
+#     δUδσ(σ[i, k, 1]; m2 = m2, λ = λ, J = J) - γ * σ[i, k, 2]
 #     elseif (i == 1 && k > 0 && k <= M)
 #         @inbounds dσ[i, k, 1] = σ[i, k, 2]
 #         @inbounds dσ[i, k, 2] =
@@ -509,15 +525,7 @@ function langevin_3d_tex_loop_GPU(dσ, σ, tex, p, t)
     M = size(σ, 4)
     threads = (32, 32)
     blocks = cld.((N^3, M), threads)
-    @cuda blocks = blocks threads = threads update_3d_tex_langevin!(
-        dσ,
-        σ,
-        tex,
-        γ,
-        m2,
-        λ,
-        J,
-    )
+    @cuda blocks = blocks threads = threads update_3d_tex_langevin!(dσ, σ, tex, γ, m2, λ, J)
 end
 export langevin_3d_tex_loop_GPU
 
@@ -530,15 +538,7 @@ function langevin_3d_loop_GPU(dσ, σ, fun, p, t)
     M = size(σ, 4)
     threads = (512, 2)
     blocks = cld.((N^3, M), threads)
-    @cuda blocks = blocks threads = threads update_3d_langevin!(
-        dσ,
-        σ,
-        fun,
-        γ,
-        m2,
-        λ,
-        J,
-    )
+    @cuda blocks = blocks threads = threads update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
 end
 export langevin_3d_loop_GPU
 
@@ -555,6 +555,9 @@ function langevin_3d_loop_simple_GPU(dσ, σ, fun)
     )
 end
 export langevin_3d_loop_simple_GPU
+
+
+
 
 
 

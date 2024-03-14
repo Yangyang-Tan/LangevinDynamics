@@ -5,7 +5,7 @@ using DrWatson, Plots,CurveFit,DifferentialEquations,CUDA,DelimitedFiles,Random
 addprocs(length(devices()))
 @everywhere using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles,Random
 @everywhere @time @quickactivate :LangevinDynamics
-
+@time @quickactivate :LangevinDynamics
 saved_values = SavedValues(Float32, Any)
 # cb = SavingCallback(
 #     (u, t, integrator) -> reshape(

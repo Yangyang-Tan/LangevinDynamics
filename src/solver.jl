@@ -222,49 +222,6 @@ function langevin_0d_tex_SDE_prob(
 end
 export langevin_0d_tex_SDE_prob
 
-# function langevin_iso_SDE_prob(
-#     ODEfun=langevin_iso_loop_GPU;
-#     u0fun=(i) -> CUDA.randn(myT, N,M,2),
-#     γ=1.0f0,
-#     m2=-1.0f0,
-#     λ=1.0f0,
-#     J=0.0f0,
-#     tspan=myT.((0.0, 15.0)),
-#     T=5.0f0,
-#     d=3.0f0,
-# )
-#     # u0 = init_langevin_2d(xyd_brusselator)
-#     weight_mean2=0.1:0.1:1024*0.1
-#     V=sum(weight_mean2.^2) *4*pi
-#     ξ=myT(sqrt(γ*sqrt(abs(m2))*coth(sqrt(abs(m2))/(2*T))/V))
-#     @show ξ
-#     function g(du, u, p, t)
-#         du[:,:,1] .= 0.0f0
-#         du[:,:,2] .= ξ
-#     end
-#     u0_GPU = 1.0f0
-#     function prob_func(prob, i, repeat)
-#         return remake(prob; u0=u0fun(i))
-#     end
-#     output_func(sol, i) = (begin
-#         ar=Array(sol)[:,1,1,:]
-#         # mean(ar,dims=1)
-#         mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
-#         varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
-#         kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
-#         stack([mσ, varσ, kσ.-3])
-#     end, false)
-#     # W = WienerProcess(0.0,0.0,0.0)
-#     p = myT.((d,γ, m2, λ, J))
-#     W = WienerProcess(0.0, 0.0, 0.0)
-#     return EnsembleProblem(
-#         SDEProblem(ODEfun, g, u0_GPU, tspan, p,noise = W);
-#         prob_func=prob_func,
-#         output_func=output_func,
-#     )
-# end
-# export langevin_iso_SDE_prob
-# global ct = 0
 
 function langevin_3d_tex_SDE_prob(
     ODEfun = langevin_3d_tex_loop_GPU;
@@ -434,8 +391,8 @@ function modelA_3d_SDE_Simple_prob(;
     ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
     println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
     function g(du, u, p, t)
-        du[:, :, :, :] .= sqrt(2 * γ * T)
-        #du .= sqrt(mσ *γ* coth(mσ / (2 * T)))
+        #du[:, :, :, :] .= sqrt(2 * T/γ)
+       du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
     end
     u0_GPU = CuArray(u0)
     GC.gc(true)
@@ -461,6 +418,66 @@ function modelA_3d_SDE_Simple_prob(;
         sdeprob,
         # PCEuler(ggprime),
         DRI1NM(),
+        # SRIW1(),
+        # dt = 0.000000001,
+        save_start = false,
+        save_everystep = false,
+        save_end = false,
+        abstol = 1e-1,
+        reltol = 1e-1,
+        callback = cb,
+    )
+    [saved_values.t saved_values.saveval]
+end
+export modelA_3d_SDE_Simple_prob
+
+
+function modelA_3d_SDE_Simple_tex_prob(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    dt = 0.1f0,
+    x_grid,
+    δUδσ_grid,
+    noise=0.0f0,
+    args...,
+)
+    println("noise=",noise)
+    function g(du, u, p, t)
+        #du[:, :, :, :] .= sqrt(ms*coth(ms/(2*T))/γ)
+        du .=noise
+    end
+    u0_GPU = CuArray(u0)
+    GC.gc(true)
+    CUDA.reclaim()
+    @show 197.33*T
+    x_ini=x_grid[1]
+    @show x_step=x_grid[2]-x_grid[1]
+    δUδσ_grid_gpu=cu(δUδσ_grid)
+    # Ufun = TexSpline1D(x_grid, δUδσ_grid_gpu)
+    δUδσTextureMem = CuTextureArray(δUδσ_grid_gpu)
+    δUδσTextureTex = CuTexture(δUδσTextureMem; interpolation = CUDA.CubicInterpolation())
+    function ODEfun_tex(dσ, σ, p, t)
+        CUDA.@sync langevin_3d_loop_simple_tex_GPU(dσ, σ, δUδσTextureTex,x_ini,x_step)
+        CUDA.@sync dσ .= (1 / γ) .* dσ
+    end
+    sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan)
+    saved_values = SavedValues(Float32, Any)
+    cb = SavingCallback(
+        (x, t, integrator) -> begin
+            x1 = Array(abs.(mean(x, dims = [1, 2, 3])[1, 1, 1, :]))
+            return mean(x1)
+        end,
+        saved_values;
+        # saveat=0.0:0.1:100.0,
+        save_everystep = true,
+        save_start = true,
+    )
+    solve(
+        sdeprob,
+        # PCEuler(ggprime),
+        DRI1NM(),
         dt = dt,
         save_start = false,
         save_everystep = false,
@@ -471,7 +488,11 @@ function modelA_3d_SDE_Simple_prob(;
     )
     [saved_values.t saved_values.saveval]
 end
-export modelA_3d_SDE_Simple_prob
+export modelA_3d_SDE_Simple_tex_prob
+
+
+
+
 
 
 function langevin_3d_SDE_Simple_prob2(;

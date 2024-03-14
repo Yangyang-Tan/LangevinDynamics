@@ -1,4 +1,4 @@
-@everywhere function eqcd_potential_dataloader(i;dim=3)
+@everywhere function eqcd_potential_dataloader(i;dim=2)
     lam1data =
         readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/lam1_nc.dat")[:, 1] .*
         1.6481059699913014^2
@@ -27,12 +27,15 @@
     )[:,1]
     return QCDModelParameters(taylordata, Tdata)
 end
-1
+
 @everywhere function eqcd_Z0_dataloader(i)
     readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/Zphi.dat")[:, 1] ./
     readdlm("data/eQCD_Input/eqcd_potential_data/Tem1/buffer/Zphi.dat")[1, 1]
 end
 
+@everywhere etafun(x) = 2.0f0*exp(-0.000294568f0 * (-148 + x)^2)
+@everywhere etafun(x) = Float32(readdlm("data/etadata.dat")[x, 2])
+@everywhere etafun(x) = 1f0
 @everywhere function eqcd_relaxtime_datasaver(
     i::Int,#muB
     j::Int,#Temperature
@@ -42,23 +45,23 @@ end
     qcdmodel=eqcd_potential_dataloader(i);
     Z0data=Float32.(eqcd_Z0_dataloader(i));
     sol_3D_SDE = modelA_3d_SDE_Simple_prob(;
-        γ = 0.1f0/Z0data[i],
+        γ = etafun(j),
         # γ=0.2f0,
         T = qcdmodel[j].T,
         para = qcdmodel[j].U,
         u0 = u0,
         # v0 = v0,
-        tspan = (0.0f0, 8.0f0),
+        tspan = (0.0f0, 20f0*etafun(j)),
         dt = 0.0001f0,
         # savefun = meansave
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "sims/eqcd_relax_phase/relax_time_O5_nc_Z0_gamma0.2/T=$j muB=$(i*10).dat",
+        "sims/eqcd_relax_phase/relax_time_O3_nc_Z0_QCD_gamma_fitfun3_muB=0/T=$j muB=$(i*10).dat",
         sol_3D_SDE,
     )
 end
-
+mkdir("sims/eqcd_relax_phase/relax_time_O3_nc_Z0_QCD_gamma_fitfun3_muB=0")
 
 # writedlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/lam1.dat", 1 ./readdlm("data/eQCD_Input/eqcd_potential_data/Tem40/buffer/mSigma_phy.dat")[:, 1])
 eqcd_potential_dataloader(2)[1].U
@@ -66,12 +69,12 @@ u0_1 = fill(0.6f0, 32, 32, 32, 2^6)
 v0_1 = fill(0.0f0, 32, 32, 32, 2^15)
 
 @time sol_3D_SDE = modelA_3d_SDE_Simple_prob(;
-    γ = 0.5f0,
-    T = eqcd_potential_dataloader(63,dim=3)[106].T,
-    para = eqcd_potential_dataloader(63, dim = 3)[106].U,
+    γ = etafun(113),
+    T = eqcd_potential_dataloader(63,dim=3)[113].T,
+    para = eqcd_potential_dataloader(63, dim = 3)[113].U,
     u0 = u0_1,
-    tspan = (0.0f0, 1f0),
-    dt = 0.0001f0,
+    tspan = (0.0f0, 30f0),
+    dt =0.00000000001f0,
     # savefun = meansave
     # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
 )
@@ -132,15 +135,15 @@ plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(1)[250].U), -1:0.01:1)
 end
 
 
-for js in 1:2
+for js in 1:1
     asyncmap((zip(2:3, 0:1))) do (p, d)
     remotecall_wait(p) do
         # @info "Worker $p uses $d"
         device!(d)
-            u0_1 = fill(0.6f0, 32, 32, 32, 2^8)
-            v0_1 = fill(0.0f0, 32, 32, 32, 2^8)
+            u0_1 = fill(0.6f0, 32, 32, 32, 2^6)
+            v0_1 = fill(0.0f0, 32, 32, 32, 2^6)
             for i = 1:1:250
-                j = [50 1; 63 30][d+1, js]
+                j = [1 2; 3 4][d+1, js]
             @info "T=$i muB=$(j*10)"
             eqcd_relaxtime_datasaver(j, i,u0_1, v0_1)
         end
@@ -164,9 +167,26 @@ asyncmap((zip(2:4, [0 1 3]))) do (p, d)
     end
 end
 
-1
+
 eqcd_relaxtime_datasaver(1, 1, u0_1, v0_1)
 
 
+u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^8)
+v0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^8)
+
+for i = 20:2:200
+    @info "T=$i muB=$(1*10)"
+    eqcd_relaxtime_datasaver(1, i, u0_1, v0_1)
+end
+
+for i = 20:1:200
+    @info "T=$i muB=$(63*10)"
+    eqcd_relaxtime_datasaver(63, i, u0_1, v0_1)
+end
+
 readdlm("data/eQCD_Input/eqcd_potential_data/Tem1/buffer/mSigma_phy.dat")[1, 1] /
 readdlm("data/eQCD_Input/eqcd_potential_data/Tem1/buffer/mSigma.dat")[1, 1]
+
+plot(LangevinDynamics.Uσfunout(eqcd_potential_dataloader(1,dim=3)[174].U), -2:0.01:2)
+plot(readdlm("data/etadata.dat")[:,2])
+eqcd_potential_dataloader(1,dim=2)[174].U
