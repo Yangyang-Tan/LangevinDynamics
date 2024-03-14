@@ -17,6 +17,5 @@
     "julia.lint.lazy": true,
     "julia.lint.iter": true,
     "julia.lint.datadecl": true,
-    "julia.lint.constif": true,
-    "julia.environmentPath": "/home/tyy/LangevinDynamics"
+    "julia.lint.constif": true
 }

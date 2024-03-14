@@ -419,12 +419,12 @@ function modelA_3d_SDE_Simple_prob(;
         # PCEuler(ggprime),
         DRI1NM(),
         # SRIW1(),
-        # dt = 0.000000001,
+        # dt = 0.00001,
         save_start = false,
         save_everystep = false,
         save_end = false,
-        abstol = 1e-1,
-        reltol = 1e-1,
+        abstol = 5e-2,
+        reltol = 5e-2,
         callback = cb,
     )
     [saved_values.t saved_values.saveval]
