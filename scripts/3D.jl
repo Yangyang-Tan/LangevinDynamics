@@ -1,9 +1,9 @@
 using Distributed
 using DrWatson
 using CUDA
-using DrWatson, Plots,CurveFit,DifferentialEquations,CUDA,DelimitedFiles,Random
+using DrWatson, Plots,DifferentialEquations,CUDA,DelimitedFiles,Random
 addprocs(length(devices()))
-@everywhere using DrWatson, Plots,CurveFit, DifferentialEquations,CUDA,DelimitedFiles,Random
+@everywhere using DrWatson, Plots, DifferentialEquations,CUDA,DelimitedFiles,Random
 @everywhere @time @quickactivate :LangevinDynamics
 @time @quickactivate :LangevinDynamics
 saved_values = SavedValues(Float32, Any)
@@ -15,7 +15,6 @@ saved_values = SavedValues(Float32, Any)
 #     saved_values;
 #     # saveat=0.0:2.0:1500.0,
 # )
-
 cb = SavingCallback(
     (u, t, integrator) -> begin
         # u_c=Array(u);

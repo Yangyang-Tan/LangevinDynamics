@@ -391,8 +391,8 @@ function modelA_3d_SDE_Simple_prob(;
     ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
     println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
     function g(du, u, p, t)
-        #du[:, :, :, :] .= sqrt(2 * T/γ)
-       du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
+        du[:, :, :, :] .= sqrt(2 * T/γ)
+       #du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
     end
     u0_GPU = CuArray(u0)
     GC.gc(true)
