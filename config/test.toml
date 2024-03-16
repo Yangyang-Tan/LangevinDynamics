@@ -1,0 +1,11 @@
+[solver]
+name = "RDI1WM"
+[solver.opt]
+dt = 0.1
+save_start = false
+save_everystep = false
+save_end = false
+abstol = 1e-5
+reltol = 1e-5
+[grid]
+nx = 100

@@ -128,10 +128,10 @@ export update_3d_langevin!
 
 
 
-function update_3d_simple_langevin!(dσ, σ, fun)
+function update_3d_simple_langevin!(dσ, σ, fun,dx)
     N = size(σ, 1)
     # M = size(σ, 4)
-    dx = 1
+    # dx = 1
     id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     # z = (blockIdx().z - 1) * blockDim().z + threadIdx().z
     # id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -542,7 +542,7 @@ function langevin_3d_loop_GPU(dσ, σ, fun, p, t)
 end
 export langevin_3d_loop_GPU
 
-function langevin_3d_loop_simple_GPU(dσ, σ, fun)
+function langevin_3d_loop_simple_GPU(dσ, σ, fun,dx)
     # alpha = alpha / dx^2
     # N = size(σ, 1)
     # M = size(σ, 4)
@@ -552,6 +552,7 @@ function langevin_3d_loop_simple_GPU(dσ, σ, fun)
         dσ,
         σ,
         fun,
+        dx,
     )
 end
 export langevin_3d_loop_simple_GPU
