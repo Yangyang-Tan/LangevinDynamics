@@ -1,9 +1,9 @@
 using Distributed
 using DrWatson
 using CUDA
-using DrWatson, Plots,DifferentialEquations,CUDA,DelimitedFiles,Random
+using DrWatson, Plots,DifferentialEquations,CUDA,DelimitedFiles
 addprocs(length(devices()))
-@everywhere using DrWatson, Plots, DifferentialEquations,CUDA,DelimitedFiles,Random
+@everywhere using DrWatson, Plots, DifferentialEquations,CUDA,DelimitedFiles
 @everywhere @time @quickactivate :LangevinDynamics
 @time @quickactivate :LangevinDynamics
 saved_values = SavedValues(Float32, Any)

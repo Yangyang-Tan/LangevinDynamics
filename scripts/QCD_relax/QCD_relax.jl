@@ -50,28 +50,35 @@ end
         tspan = (0.0f0, 5f0*Ztdata[Tem]),
         dx=0.1f0,
         # dt = 0.0001f0,
-        noise="sqrt",
+        noise="coth",
         
         # savefun = meansave
         # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
     )
     writedlm(
-        "outputdata/relax_time_O2_noise=sqrt_dx=0.1_all/T=$Tem muB=$(muB*10).dat",
+        "outputdata/relax_time_O2_noise=coth_dx=0.1/T=$Tem muB=$(muB*10).dat",
         sol_3D_SDE,
     )
 end
-mkdir("outputdata/relax_time_O2_noise=sqrt_dx=0.1_all")
+mkdir("outputdata/relax_time_O2_noise=coth_4Zt_dx=0.1")
 eqcd_potential_dataloader(63, dim = 3)[113].U
 @time sol_3D_SDE = modelA_3d_SDE_Simple_prob(;
-    γ = 0.1f0,
-    T = eqcd_potential_dataloader(10,dim=3)[200].T,
-    para = eqcd_potential_dataloader(10, dim = 3)[200].U,
-    u0 = u0_1,
-    tspan = (0.0f0, 0.3f0),
+    γ = 1f0,
+    T = eqcd_potential_dataloader(63,dim=3)[10].T,
+    para = eqcd_potential_dataloader(63, dim = 3)[10].U,
+    u0 = u_high,
+    tspan = (0.0f0, 2f0),
+    noise="sqrt",
+    dx=0.1,
     # dt =0.00000000001f0,
     # savefun = meansave
     # u0fun = x -> 0.1f0*CUDA.randn(32,32,32,2^9, 2),
 )
+u_high
+
+
+plot(sol_3D_SDE[:,1], sol_3D_SDE[:,2])
+
 
 u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^6)
 

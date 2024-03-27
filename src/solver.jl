@@ -373,6 +373,12 @@ function modelA_3d_SDE_Simple_prob(;
     dt = 0.1f0,
     noise="coth",
     dx=1,
+    solver=DRI1NM(),
+    save_start = false,
+    save_everystep = false,
+    save_end = false,
+    abstol = 5e-2,
+    reltol = 5e-2,
     args...,
 )
     # u0 = init_langevin_2d(xyd_brusselator)
@@ -380,6 +386,10 @@ function modelA_3d_SDE_Simple_prob(;
     mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
     # Ufun = funout_cut2(para)
     Ufun = funout(para)
+    # function Ufun(x)
+    #     -x + x^3/6
+    # end
+
     # output_func(sol, i) = i
     # output_func(sol, i) = (begin
     #     ar=Array(sol)[:,1,1,:]
@@ -390,7 +400,7 @@ function modelA_3d_SDE_Simple_prob(;
     #     stack([mσ, varσ, kσ.-3])
     # end, false)
     # p = myT.((γ, m2, λ, J))
-    ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    # ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
     println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
 
     function g1(du, u, p, t)
@@ -416,34 +426,72 @@ function modelA_3d_SDE_Simple_prob(;
     saved_values = SavedValues(Float32, Any)
     cb = SavingCallback(
         (x, t, integrator) -> begin
-            # x1 = Array(abs.(mean(x, dims = [1, 2, 3])[1, 1, 1, :]))
+            x1 = (mean(x, dims = [1, 2, 3])[1, 1, 1, :])
+            # return var(x1)/T
             return mean(x)
+            # x1
         end,
         saved_values;
-        # saveat=0.0:0.1:100.0,
-        save_everystep = true,
+        saveat=tspan[1]:0.05:tspan[2],
+        save_everystep = false,
         save_start = true,
     )
     solve(
         sdeprob,
         # PCEuler(ggprime),
-        DRI1NM(),
+        solver,
         #DRI1(),
         #SRA3(),
         # SRIW1(),
         #RDI1WM(),
         #EM(),
         # dt = 0.002,
-        save_start = false,
-        save_everystep = false,
-        save_end = false,
-        abstol = 5e-2,
-        reltol = 5e-2,
+        save_start = save_start,
+        save_everystep = save_everystep,
+        save_end = save_end,
+        abstol = abstol,
+        reltol = reltol,
         callback = cb,
+        # dt=0.0015f0,
+        args...,
     )
-    [saved_values.t saved_values.saveval]
+     [saved_values.t saved_values.saveval]
 end
 export modelA_3d_SDE_Simple_prob
+
+
+
+
+function modelA_3d_SDE_Simple_prob_EM(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt = 0.1f0,
+    dx=1,
+    args...,
+)
+    Ufun = funout(para)
+    GC.gc(true)
+    CUDA.reclaim()
+    function ODEfun_tex(dσ, σ)
+        langevin_3d_loop_simple_GPU(dσ, σ, Ufun,dx)
+    end
+    #println("noise=", sqrt(T))
+    sdefun = OverdampSDEProblem(ODEfun_tex, u0, tspan)
+    # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
+    solve(
+        sdefun,
+        # PCEuler(ggprime),
+        OverdampEM(;eta = γ, noise = sqrt(2*T));
+        dt=dt,
+        save_interval=0.05f0,
+    )
+end
+export modelA_3d_SDE_Simple_prob_EM
+
+
 
 
 function modelA_3d_SDE_Simple_tex_prob(;

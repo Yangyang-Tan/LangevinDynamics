@@ -24,6 +24,7 @@ import DifferentialEquations.StochasticDiffEq:
 include("GPUKernel.jl")
 
 include("SDEalg/BAOABGPU.jl")
+include("SDEalg/OverdampEM.jl")
 include("Texture.jl")
 include("leapfrog.jl")
 include("ini.jl")
