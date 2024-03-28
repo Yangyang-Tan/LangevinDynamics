@@ -124,61 +124,213 @@ end
 
 
 
-u0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^13);
+u0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^12);
 GC.gc(true)
 CUDA.reclaim()
-@time sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob_EM(;
-    γ = 1.0f0,
-    T = qcdmodel.T,
-    para = qcdmodel.U,
-    u0 = u0_1,
-    tspan = (0.0f0, 30.0f0),
-    # save_end=true,
-    # dt = 0.02f0,
-    dx = 0.1f0,
-    dt = 0.001f0,
+@time sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+solver = DRI1NM(),
+γ = 1.0f0,
+T = qcdmodel.T,
+para = qcdmodel.U,
+u0 = u0_1,
+tspan = (0.0f0, 30f0),
+# save_end=true,
+# dt = 0.00000001f0,
+dx = 0.1f0,
+noise = "sqrt",
+abstol = 5e-2,
+reltol = 5e-2,
+# dt=0.01f0,
 )
+
 
 testdata2 = sol_3D_SDE_EM;
 mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
 writedlm(
-    "sims/ini_compare/mub=630_T=108/constini/gamma=1_ini=0_time.dat",
+    "sims/ini_compare/mub=630_T=108/constini/gamma=1_ini=0_time_Batch=1.dat",
     collect(0.0:0.05:30),
 )
-writedlm("sims/ini_compare/mub=630_T=108/constini/gamma=1_ini=0.dat", mv1)
+writedlm("sims/ini_compare/mub=630_T=108/constini/gamma=1_ini=0_Batch=1.dat", sol_3D_SDE_EM[:,2])
 
 
 
 
 
+#############################
+#random ini
+##############################
 
+qcdmodel = eqcd_potential_dataloader(63)[108]
 
-
-
-
-
-
-
-u0_1
-qcdmodel = eqcd_potential_dataloader(63)[20]
-u0_1 = CUDA.randn(32, 32, 32, 2^8) .- 0.2f0;
-u0_1 = CUDA.fill(2.0f0, 32, 32, 32, 2^8);
-
+u0_1 = 0;
 GC.gc(true)
 CUDA.reclaim()
-u0_1 = 0
 
-@time sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob_EM(;
+u0_1 = CUDA.randn(32, 32, 32, 2^12).+0.6f0;
+
+@time modelA_3d_SDE_Simple_prob(;
+    solver = DRI1NM(),
     γ = 1.0f0,
-    T = 3.5f0,
-    para = TaylorParameters([0.0f0 0.5f0 0.0f0 0.0f0 0.0f0 1.0f0 0.0f0])[1],
+    T = qcdmodel.T,
+    para = qcdmodel.U,
     u0 = u0_1,
-    tspan = (0.0f0, 20.0f0),
+    tspan = (0.0f0, 30f0),
     # save_end=true,
-    # dt = 0.02f0,
-    dx = 1.0f0,
-    dt = 0.001f0,
+    # dt = 0.00000001f0,
+    dx = 0.1f0,
+    noise = "sqrt",
+    abstol = 6e-2,
+    reltol = 6e-2,
+    # dt=0.01f0,
 )
+t1 = ans
+t1[:, 1]
+
+
+
+
+
+
+@everywhere qcdmodel = eqcd_potential_dataloader(63)[108]
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, 0.0f0, 0.6f0][p]
+        for muB in task_muB
+            for Tem = 3:6
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.randn(32, 32, 32, 2^12).+task_muB
+                GC.gc(true)
+                CUDA.reclaim()
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 30.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 6e-2,
+                    reltol = 6e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=108/randini/gamma=1_ini=$(muB)_time_Batch=$Tem.dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=108/randini/gamma=1_ini=$(muB)_Batch=$Tem.dat",
+                    testdata2[:,2],
+                )
+            end
+        end
+    end
+end
+
+
+
+#############################
+#quench ini
+##############################
+u0_1=CUDA.randn(32, 32, 32, 2^12);
+qcdmodel = eqcd_potential_dataloader(63)[108]
+highTdata=modelA_3d_SDE_Simple_prob2(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 0.1f0),
+                    save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 6e-2,
+                    reltol = 6e-2,
+                    # dt=0.01f0,
+                )
+highTdata[end]
+plot(highTdata[:, 1], highTdata[:, 2])
+
+
+
+@everywhere qcdmodel = eqcd_potential_dataloader(63)[108]
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, 0.0f0, 0.6f0][p]
+        for muB in task_muB
+            for Tem = 1:1
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.randn(32, 32, 32, 2^12)
+                GC.gc(true)
+                CUDA.reclaim()
+                qcdmodelhigh = eqcd_potential_dataloader(63)[250]
+                highTdata=modelA_3d_SDE_Simple_prob2(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodelhigh.T,
+                    para = qcdmodelhigh.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 1.2f0),
+                    save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 6e-2,
+                    reltol = 6e-2,
+                    # dt=0.01f0,
+                )
+                u0_1=0
+                GC.gc(true)
+                CUDA.reclaim()
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = highTdata[end],
+                    tspan = (0.0f0, 30.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 6e-2,
+                    reltol = 6e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=108/quenchini/gamma=1_ini_time_Batch=$(muB).dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=108/quenchini/gamma=1_ini_Batch=$(muB).dat",
+                    testdata2[:,2],
+                )
+            end
+        end
+    end
+end
+
+
+
 
 
 

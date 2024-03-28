@@ -426,13 +426,14 @@ function modelA_3d_SDE_Simple_prob(;
     saved_values = SavedValues(Float32, Any)
     cb = SavingCallback(
         (x, t, integrator) -> begin
+            @show t
             x1 = (mean(x, dims = [1, 2, 3])[1, 1, 1, :])
             # return var(x1)/T
             return mean(x)
             # x1
         end,
         saved_values;
-        saveat=tspan[1]:0.05:tspan[2],
+        saveat=tspan[1]:(0.05*γ):tspan[2],
         save_everystep = false,
         save_start = true,
     )
@@ -458,6 +459,107 @@ function modelA_3d_SDE_Simple_prob(;
      [saved_values.t saved_values.saveval]
 end
 export modelA_3d_SDE_Simple_prob
+
+
+
+
+
+function modelA_3d_SDE_Simple_prob2(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    para = para::TaylorParameters,
+    dt = 0.1f0,
+    noise="coth",
+    dx=1,
+    solver=DRI1NM(),
+    save_start = false,
+    save_everystep = false,
+    save_end = false,
+    abstol = 5e-2,
+    reltol = 5e-2,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    # Ufun = funout_cut2(para)
+    Ufun = funout(para)
+    # function Ufun(x)
+    #     -x + x^3/6
+    # end
+
+    # output_func(sol, i) = i
+    # output_func(sol, i) = (begin
+    #     ar=Array(sol)[:,1,1,:]
+    #     # mean(ar,dims=1)
+    #     mσ=sum(ar.*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     varσ=sum((ar.-mσ).^2 .*weight_mean2.^2,dims=1) *4*pi/(V)
+    #     kσ=sum((ar.-mσ).^4 .*weight_mean2.^2,dims=1) *4*pi./(V*varσ.^2)
+    #     stack([mσ, varσ, kσ.-3])
+    # end, false)
+    # p = myT.((γ, m2, λ, J))
+    # ODEfun_tex(dσ, σ) = langevin_3d_loop_simple_GPU(dσ, σ, Ufun)
+    println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+
+    function g1(du, u, p, t)
+        du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
+    end
+    function g2(du, u, p, t)
+        du .= sqrt(2*T/γ)
+    end
+    u0_GPU = CuArray(u0)
+    GC.gc(true)
+    CUDA.reclaim()
+    function ODEfun_tex(dσ, σ, p, t)
+        CUDA.@sync langevin_3d_loop_simple_GPU(dσ, σ, Ufun,dx)
+        CUDA.@sync dσ .= (1 / γ) .* dσ
+    end
+    #println("noise=", sqrt(T))
+    if noise=="coth"
+        sdeprob = SDEProblem(ODEfun_tex,g1, u0_GPU, tspan)
+    elseif noise=="sqrt"
+        sdeprob = SDEProblem(ODEfun_tex,g2, u0_GPU, tspan)
+    end
+    # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
+    saved_values = SavedValues(Float32, Any)
+    cb = SavingCallback(
+        (x, t, integrator) -> begin
+            @show t
+            x1 = (mean(x, dims = [1, 2, 3])[1, 1, 1, :])
+            # return var(x1)/T
+            return mean(x)
+            # x1
+        end,
+        saved_values;
+        saveat=tspan[1]:0.05:tspan[2],
+        save_everystep = false,
+        save_start = true,
+    )
+    solve(
+        sdeprob,
+        # PCEuler(ggprime),
+        solver,
+        #DRI1(),
+        #SRA3(),
+        # SRIW1(),
+        #RDI1WM(),
+        #EM(),
+        # dt = 0.002,
+        save_start = save_start,
+        save_everystep = save_everystep,
+        save_end = save_end,
+        abstol = abstol,
+        reltol = reltol,
+        # callback = cb,
+        # dt=0.0015f0,
+        args...,
+    )
+    #  [saved_values.t saved_values.saveval]
+end
+export modelA_3d_SDE_Simple_prob2
+
 
 
 
