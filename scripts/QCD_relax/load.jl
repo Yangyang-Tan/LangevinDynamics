@@ -19,7 +19,7 @@ function eqcd_potential_dataloader(i;dim=3)
         readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/rho0.dat")[:, 1] ./
         1.6481059699913014^2
     cdata =
-        readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/c.dat")[:, 1] .*
+        0f0*readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/c.dat")[:, 1] .*
         1.6481059699913014
     Tdata= readdlm("data/eQCD_Input/eqcd_potential_data/Tem$i/buffer/TMeV.dat")[:, 1]./197.33
     taylordata = TaylorParameters(

@@ -429,11 +429,11 @@ function modelA_3d_SDE_Simple_prob(;
             @show t
             x1 = (mean(x, dims = [1, 2, 3])[1, 1, 1, :])
             # return var(x1)/T
-            return mean(x)
+            return [mean(x) var(x)]
             # x1
         end,
         saved_values;
-        saveat=tspan[1]:(0.05*γ):tspan[2],
+        saveat=tspan[1]:(0.02):tspan[2],
         save_everystep = false,
         save_start = true,
     )
@@ -516,11 +516,18 @@ function modelA_3d_SDE_Simple_prob2(;
         CUDA.@sync langevin_3d_loop_simple_GPU(dσ, σ, Ufun,dx)
         CUDA.@sync dσ .= (1 / γ) .* dσ
     end
+    function ODEfun_tex2(dσ, σ, p, t)
+        CUDA.@sync langevin_3d_loop_GPU(dσ, σ, Ufun, γ, t)
+    end
     #println("noise=", sqrt(T))
     if noise=="coth"
         sdeprob = SDEProblem(ODEfun_tex,g1, u0_GPU, tspan)
     elseif noise=="sqrt"
         sdeprob = SDEProblem(ODEfun_tex,g2, u0_GPU, tspan)
+    elseif noise=="none"
+        sdeprob = ODEProblem(ODEfun_tex, u0_GPU, tspan)
+    elseif noise=="none2"
+        sdeprob = ODEProblem(ODEfun_tex2, stack([u0_GPU,u0_GPU]), tspan)
     end
     # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
     saved_values = SavedValues(Float32, Any)
@@ -537,6 +544,8 @@ function modelA_3d_SDE_Simple_prob2(;
         save_everystep = false,
         save_start = true,
     )
+    GC.gc(true)
+    CUDA.reclaim()
     solve(
         sdeprob,
         # PCEuler(ggprime),
@@ -546,14 +555,14 @@ function modelA_3d_SDE_Simple_prob2(;
         # SRIW1(),
         #RDI1WM(),
         #EM(),
-        # dt = 0.002,
+        #dt = dt,
         save_start = save_start,
         save_everystep = save_everystep,
         save_end = save_end,
         abstol = abstol,
         reltol = reltol,
         # callback = cb,
-        # dt=0.0015f0,
+        #dt=dt,
         args...,
     )
     #  [saved_values.t saved_values.saveval]
@@ -880,3 +889,242 @@ function langevin_3d_ODE_prob(
     SecondOrderODEProblem(ODEfun_tex, du0, u0, tspan, p)
 end
 export langevin_3d_ODE_prob
+
+
+
+function modelB_2d_ODE_prob(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    # para = para::TaylorParameters,
+    # dt = 0.1f0,
+    # noise="coth",
+    dx=1,
+    solver=DRI1NM(),
+    save_start = false,
+    save_everystep = false,
+    save_end = false,
+    abstol = 5e-2,
+    reltol = 5e-2,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    # mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    # Ufun = funout_cut2(para)
+    # Ufun = funout(para)
+    # println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+
+    # function g1(du, u, p, t)
+    #     du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
+    # end
+    # function g2(du, u, p, t)
+    #     du .= sqrt(2*T/γ)
+    # end
+    function Ufun(x)
+        -x + x^3/6
+        # 0
+    end
+    function Upfun(x)
+        #  x^2/2 -1
+        0
+    end
+    function Uppfun(x)
+        # x        
+        0
+    end
+    u0_GPU = CuArray(u0)
+    GC.gc(true)
+    CUDA.reclaim()
+    function ODEfun_tex(dσ, σ, p, t)
+        CUDA.@sync modelB_2d_loop_GPU(dσ, σ, Ufun,dx)
+        CUDA.@sync @. dσ = (1 / γ) * dσ
+    end
+    sdeprob=ODEProblem(ODEfun_tex, u0_GPU, tspan)
+    # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
+    GC.gc(true)
+    CUDA.reclaim()
+    solve(
+        sdeprob,
+        # PCEuler(ggprime),
+        solver,
+        #DRI1(),
+        #SRA3(),
+        # SRIW1(),
+        #RDI1WM(),
+        #EM(),
+        #dt = dt,
+        save_start = save_start,
+        save_everystep = save_everystep,
+        save_end = save_end,
+        abstol = abstol,
+        reltol = reltol,
+        saveat=tspan[1]:(1f0):tspan[2],
+        # callback = cb,
+        #dt=dt,
+        args...,
+    )
+    #  [saved_values.t saved_values.saveval]
+end
+export modelB_2d_ODE_prob
+
+
+
+function modelA_2d_ODE_prob(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    # para = para::TaylorParameters,
+    # dt = 0.1f0,
+    # noise="coth",
+    dx=1,
+    solver=DRI1NM(),
+    save_start = false,
+    save_everystep = false,
+    save_end = false,
+    abstol = 5e-2,
+    reltol = 5e-2,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    # mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    # Ufun = funout_cut2(para)
+    # Ufun = funout(para)
+    # println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+
+    # function g1(du, u, p, t)
+    #     du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
+    # end
+    # function g2(du, u, p, t)
+    #     du .= sqrt(2*T/γ)
+    # end
+    function Ufun(x)
+        -x + x^3/6
+        # 0
+    end
+    function Upfun(x)
+        #  x^2/2 -1
+        0
+    end
+    function Uppfun(x)
+        # x        
+        0
+    end
+    u0_GPU = CuArray(u0)
+    GC.gc(true)
+    CUDA.reclaim()
+    function ODEfun_tex(dσ, σ, p, t)
+        CUDA.@sync modelA_2d_loop_GPU(dσ, σ, Ufun,dx)
+        CUDA.@sync @. dσ = (1 / γ) * dσ
+    end
+    sdeprob=ODEProblem(ODEfun_tex, u0_GPU, tspan)
+    # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
+    GC.gc(true)
+    CUDA.reclaim()
+    solve(
+        sdeprob,
+        # PCEuler(ggprime),
+        solver,
+        #DRI1(),
+        #SRA3(),
+        # SRIW1(),
+        #RDI1WM(),
+        #EM(),
+        #dt = dt,
+        save_start = save_start,
+        save_everystep = save_everystep,
+        save_end = save_end,
+        abstol = abstol,
+        reltol = reltol,
+        saveat=tspan[1]:(1f0):tspan[2],
+        # callback = cb,
+        #dt=dt,
+        args...,
+    )
+    #  [saved_values.t saved_values.saveval]
+end
+export modelA_2d_ODE_prob
+
+
+
+
+
+function modelC_2d_ODE_prob(;
+    u0 = error("u0 not provided"),
+    γ = 1.0f0,
+    tspan = myT.((0.0, 15.0)),
+    T = 5.0f0,
+    # para = para::TaylorParameters,
+    # dt = 0.1f0,
+    # noise="coth",
+    dx=1,
+    solver=DRI1NM(),
+    save_start = false,
+    save_everystep = false,
+    save_end = false,
+    abstol = 5e-2,
+    reltol = 5e-2,
+    args...,
+)
+    # u0 = init_langevin_2d(xyd_brusselator)
+
+    # mσ = sqrt(abs(para.λ1) + 2 * para.ρ0 * para.λ2)
+    # Ufun = funout_cut2(para)
+    # Ufun = funout(para)
+    # println("noise=", sqrt(mσ * coth(mσ / (2 * T))))
+
+    # function g1(du, u, p, t)
+    #     du .= sqrt(mσ * coth(mσ / (2 * T))/γ)
+    # end
+    # function g2(du, u, p, t)
+    #     du .= sqrt(2*T/γ)
+    # end
+    function Ufun(x)
+        -x + x^3/6
+        # 0
+    end
+    function Upfun(x)
+        #  x^2/2 -1
+        0
+    end
+    function Uppfun(x)
+        # x        
+        0
+    end
+    u0_GPU = CuArray(stack([u0,u0]))
+    GC.gc(true)
+    CUDA.reclaim()
+    function ODEfun_tex(dσ, σ, p, t)
+        CUDA.@sync modelC_2d_loop_GPU(dσ, σ, Ufun,dx)
+        CUDA.@sync @. dσ = (1 / γ) * dσ
+    end
+    sdeprob=ODEProblem(ODEfun_tex, u0_GPU, tspan)
+    # sdeprob = SDEProblem(ODEfun_tex,g, u0_GPU, tspan,dx)
+    GC.gc(true)
+    CUDA.reclaim()
+    solve(
+        sdeprob,
+        # PCEuler(ggprime),
+        solver,
+        #DRI1(),
+        #SRA3(),
+        # SRIW1(),
+        #RDI1WM(),
+        #EM(),
+        #dt = dt,
+        save_start = save_start,
+        save_everystep = save_everystep,
+        save_end = save_end,
+        abstol = abstol,
+        reltol = reltol,
+        saveat=tspan[1]:(1f0):tspan[2],
+        # callback = cb,
+        #dt=dt,
+        args...,
+    )
+    #  [saved_values.t saved_values.saveval]
+end
+export modelC_2d_ODE_prob

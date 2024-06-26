@@ -89,7 +89,7 @@ export update_1d_tex_langevin!
 
 
 
-function update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
+function update_3d_langevin!(dσ, σ, fun, γ)
     N = size(σ, 1)
     M = size(σ, 4)
     dx = 1.0f0
@@ -128,7 +128,7 @@ export update_3d_langevin!
 
 
 
-function update_3d_simple_langevin!(dσ, σ, fun,dx)
+function update_3d_simple_langevin!(dσ, σ, fun, dx)
     N = size(σ, 1)
     # M = size(σ, 4)
     # dx = 1
@@ -164,6 +164,7 @@ function update_3d_simple_langevin!(dσ, σ, fun,dx)
 end
 export update_3d_simple_langevin!
 
+
 function update_3d_simple_tex_langevin!(dσ, σ, tex, x_ini, x_step)
     N = size(σ, 1)
     dx = 1
@@ -182,7 +183,7 @@ function update_3d_simple_tex_langevin!(dσ, σ, tex, x_ini, x_step)
                 σ[x, ym1, z, k] +
                 σ[x, y, zp1, k] +
                 σ[x, y, zm1, k] - 6 * σ[x, y, z, k]
-            ) / dx^2 - tex[(((σ[x, y, z, k] - x_ini) / x_step) +1f0)]
+            ) / dx^2 - tex[(((σ[x, y, z, k]-x_ini)/x_step)+1.0f0)]
     end
     return nothing
 end
@@ -487,6 +488,124 @@ export update_2d_pure_langevin_nonlocal!
 # end
 # export langevin_1d_loop_GPU
 
+function limitbound2(a, n)
+    if a == n + 1
+        1
+    elseif a == 0
+        n
+    elseif a == n + 2
+        2
+    elseif a == -1
+        n - 1
+    else
+        a
+    end
+end
+
+
+
+function update_2d_modelB!(dσ, σ, fun, dx)
+    N = size(σ, 1)
+    id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    cind = CartesianIndices(σ)
+    for i = id:blockDim().x*gridDim().x:prod(size(σ))
+        x, y = Tuple(cind[i])
+        xp1, xm1 = limitbound2(x + 1, N), limitbound2(x - 1, N)
+        yp1, ym1 = limitbound2(y + 1, N), limitbound2(y - 1, N)
+        xp2, xm2 = limitbound2(x + 2, N), limitbound2(x - 2, N)
+        yp2, ym2 = limitbound2(y + 2, N), limitbound2(y - 2, N)
+        @inbounds dσ[x, y] =
+            (
+                -20 * σ[x, y] + 8 * σ[x, ym1] - σ[x, ym2] + 8 * σ[x, yp1] - σ[x, yp2] +
+                8 * σ[xm1, y] - 2 * σ[xm1, ym1] - 2 * σ[xm1, yp1] - σ[xm2, y] -
+                2 * (-4 * σ[xp1, y] + σ[xp1, ym1] + σ[xp1, yp1]) - σ[xp2, y]
+            ) / dx^4 -
+            (
+                4 * fun(σ[x, y]) - fun(σ[xm1, y]) - fun(σ[xp1, y]) - fun(σ[x, yp1]) -
+                fun(σ[x, ym1])
+            ) / dx^2
+        # +
+        # fun2(σ[x, y]) * (
+        #     ((σ[xp1, y] - σ[xm1, y]) / (2 * dx))^2 +
+        #     ((σ[x, yp1] - σ[x, ym1]) / (2 * dx))^2
+        # ) +
+        # fun1(σ[x, y]) * (
+        #     (σ[xp1, y] - 2σ[x, y] + σ[xm1, y]) / dx^2 +
+        #     (σ[x, yp1] - 2σ[x, y] + σ[x, ym1]) / dx^2
+        # )
+    end
+    return nothing
+end
+export update_2d_modelB!
+
+
+function update_2d_modelA!(dσ, σ, fun, dx)
+    N = size(σ, 1)
+    id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    cind = CartesianIndices(σ)
+    for i = id:blockDim().x*gridDim().x:prod(size(σ))
+        x, y = Tuple(cind[i])
+        xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
+        yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
+        @inbounds dσ[x, y] =
+            (σ[xp1, y] + σ[xm1, y] + σ[x, yp1] + σ[x, ym1] - 4 * σ[x, y]) / dx^2 -
+            fun(σ[x, y])
+        # +
+        # fun2(σ[x, y]) * (
+        #     ((σ[xp1, y] - σ[xm1, y]) / (2 * dx))^2 +
+        #     ((σ[x, yp1] - σ[x, ym1]) / (2 * dx))^2
+        # ) +
+        # fun1(σ[x, y]) * (
+        #     (σ[xp1, y] - 2σ[x, y] + σ[xm1, y]) / dx^2 +
+        #     (σ[x, yp1] - 2σ[x, y] + σ[x, ym1]) / dx^2
+        # )
+    end
+    return nothing
+end
+export update_2d_modelA!
+
+
+
+
+function update_2d_modelC!(dσ, σ, fun, dx)
+    N = size(σ, 1)
+    λ0 = 1.0f0
+    g0=0.2f0
+    id = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    cind = CartesianIndices(σ)
+    for i = id:blockDim().x*gridDim().x:prod(size(σ))
+        x, y = Tuple(cind[i])
+        xp1, xm1 = limitbound(x + 1, N), limitbound(x - 1, N)
+        yp1, ym1 = limitbound(y + 1, N), limitbound(y - 1, N)
+        @inbounds dσ[x, y, 1] =
+            (σ[xp1, y, 1] + σ[xm1, y, 1] + σ[x, yp1, 1] + σ[x, ym1, 1] - 4 * σ[x, y, 1]) /
+            dx^2 - fun(σ[x, y, 1]) - g0*σ[x, y, 1] * σ[x, y, 2]
+        @inbounds dσ[x, y, 2] =
+            (
+                (
+                    σ[xp1, y, 2] + σ[xm1, y, 2] + σ[x, yp1, 2] + σ[x, ym1, 2] -
+                    4 * σ[x, y, 2]
+                ) + g0*λ0*(
+                    σ[xp1, y, 1]^2 + σ[xm1, y, 1]^2 + σ[x, yp1, 1]^2 + σ[x, ym1, 1]^2 -
+                    4 * σ[x, y, 1]^2
+                )/2
+            ) / dx^2
+        # +
+        # fun2(σ[x, y]) * (
+        #     ((σ[xp1, y] - σ[xm1, y]) / (2 * dx))^2 +
+        #     ((σ[x, yp1] - σ[x, ym1]) / (2 * dx))^2
+        # ) +
+        # fun1(σ[x, y]) * (
+        #     (σ[xp1, y] - 2σ[x, y] + σ[xm1, y]) / dx^2 +
+        #     (σ[x, yp1] - 2σ[x, y] + σ[x, ym1]) / dx^2
+        # )
+    end
+    return nothing
+end
+export update_2d_modelC!
+
+
+
 
 function langevin_0d_tex_loop_GPU(dσ, σ, tex, p, t)
     γ, m2, λ, J = p
@@ -531,18 +650,17 @@ export langevin_3d_tex_loop_GPU
 
 
 
-function langevin_3d_loop_GPU(dσ, σ, fun, p, t)
-    γ, m2, λ, J = p
+function langevin_3d_loop_GPU(dσ, σ, fun, γ, t)
     # alpha = alpha / dx^2
     N = size(σ, 1)
     M = size(σ, 4)
     threads = (512, 2)
     blocks = cld.((N^3, M), threads)
-    @cuda blocks = blocks threads = threads update_3d_langevin!(dσ, σ, fun, γ, m2, λ, J)
+    @cuda blocks = blocks threads = threads update_3d_langevin!(dσ, σ, fun, γ)
 end
 export langevin_3d_loop_GPU
 
-function langevin_3d_loop_simple_GPU(dσ, σ, fun,dx)
+function langevin_3d_loop_simple_GPU(dσ, σ, fun, dx)
     # alpha = alpha / dx^2
     # N = size(σ, 1)
     # M = size(σ, 4)
@@ -557,8 +675,36 @@ function langevin_3d_loop_simple_GPU(dσ, σ, fun,dx)
 end
 export langevin_3d_loop_simple_GPU
 
+function modelB_2d_loop_GPU(dσ, σ, fun, dx)
+    # alpha = alpha / dx^2
+    # N = size(σ, 1)
+    # M = size(σ, 4)
+    threads = 512
+    blocks = 2^5
+    @cuda blocks = blocks threads = threads maxregs = 4 update_2d_modelB!(dσ, σ, fun, dx)
+end
+export modelB_2d_loop_GPU
 
 
+function modelA_2d_loop_GPU(dσ, σ, fun, dx)
+    # alpha = alpha / dx^2
+    # N = size(σ, 1)
+    # M = size(σ, 4)
+    threads = 512
+    blocks = 2^5
+    @cuda blocks = blocks threads = threads maxregs = 4 update_2d_modelA!(dσ, σ, fun, dx)
+end
+export modelA_2d_loop_GPU
+
+function modelC_2d_loop_GPU(dσ, σ, fun, dx)
+    # alpha = alpha / dx^2
+    # N = size(σ, 1)
+    # M = size(σ, 4)
+    threads = 1024
+    blocks = 2^5
+    @cuda blocks = blocks threads = threads maxregs = 4 update_2d_modelC!(dσ, σ, fun, dx)
+end
+export modelC_2d_loop_GPU
 
 
 

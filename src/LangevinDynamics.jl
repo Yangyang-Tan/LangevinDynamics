@@ -22,7 +22,7 @@ import DifferentialEquations.StochasticDiffEq:
 # export NCDataset, dimnames
 # include("core.jl") # this file now also has export statements
 include("GPUKernel.jl")
-
+include("ONGPUKernel.jl")
 include("SDEalg/BAOABGPU.jl")
 include("SDEalg/OverdampEM.jl")
 include("Texture.jl")

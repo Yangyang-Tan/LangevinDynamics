@@ -2,7 +2,9 @@ using TOML
 config = TOML.parsefile("sims/ini_compare/config.toml")
 solver_symbol = Symbol(config["solver"]["name"])
 solver_constructor = eval(Expr(:call, solver_symbol))
-
+##############
+#low Tem
+##############
 
 u0_1 = CUDA.fill(0.6f0, 128, 128, 128, 2^6);
 
@@ -13,13 +15,232 @@ using CUDA
 u0_1 = CUDA.fill(Float16, 0.1f0, 12, 32, 32, 32, 4096);
 
 
+[0.1f0,0.127,0.128,0.13f0,0.131f0,0.15f0]
+u0_1 = CUDA.randn(32, 32, 32, 2^8).-0.128f0;
 
-u0_1 = CUDA.randn(32, 32, 32, 2^16) .+ 0.6f0;
-
-u0_1 = CUDA.fill(Float32(-0.6f0), 32, 32, 32, 2^6);
+u0_1 = CUDA.fill(Float32(-0.108f0), 32, 32, 32, 2^7);
 u0_1 = 0;
 @everywhere include("/home/tyy/LangevinDynamics/scripts/QCD_relax/load.jl")
-@everywhere qcdmodel = eqcd_potential_dataloader(63)[46]
+@everywhere qcdmodel = eqcd_potential_dataloader(63)[50]
+qcdmodel = eqcd_potential_dataloader(63)[50]
+[0.1f0,0.105,0.108,0.11,0.12f0,0.13f0,0.15f0]
+@time sol_3D_SDE_2 = modelA_3d_SDE_Simple_prob(;
+    solver = DRI1NM(),
+    γ = 1.0f0,
+    T = qcdmodel.T,
+    para = qcdmodel.U,
+    u0 = u0_1,
+    tspan = (0.0f0, 10f0),
+    # save_end=true,
+    # dt = 0.02f0,
+    dx = 0.1f0,
+    noise = "sqrt",
+    abstol = 2e-2,
+    reltol = 2e-2,
+    # dt=0.01f0,
+)
+
+plot!(sol_3D_SDE_2[2:end, 1], stack(sol_3D_SDE_2[2:end, 2])[1,1,:])
+
+
+
+
+
+
+@everywhere qcdmodel = eqcd_potential_dataloader(63)[50]
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, [-0.128f0,-0.130f0,-0.134f0], [-0.126f0,-0.124f0,-0.12f0]][p]
+        for muB in task_muB
+            for Tem = 1:1
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.randn(Float32,32, 32, 32, 2^12).+muB
+                GC.gc(true)
+                CUDA.reclaim()
+                qcdmodel = eqcd_potential_dataloader(63)[50]
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 15.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 2e-2,
+                    reltol = 2e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_time_Batch=$Tem.dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_Batch=$Tem.dat",
+                    stack(testdata2[:,2])[1,:,:],
+                )
+            end
+        end
+    end
+end
+
+
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, [0.4f0], [0.6f0]][p]
+        for muB in task_muB
+            for Tem = 1:1
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.randn(Float32,32, 32, 32, 2^12).+muB
+                GC.gc(true)
+                CUDA.reclaim()
+                qcdmodel = eqcd_potential_dataloader(63)[50]
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 15.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 2e-2,
+                    reltol = 2e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_time_Batch=$Tem.dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_Batch=$Tem.dat",
+                    stack(testdata2[:,2])[1,:,:],
+                )
+            end
+        end
+    end
+end
+
+
+
+
+
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, [-0.4f0], [0.2f0]][p]
+        for muB in task_muB
+            for Tem = 1:1
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.randn(Float32,32, 32, 32, 2^12).+muB
+                GC.gc(true)
+                CUDA.reclaim()
+                qcdmodel = eqcd_potential_dataloader(63)[50]
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 15.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 2e-2,
+                    reltol = 2e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_time_Batch=$Tem.dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/randini/gamma=1_ini=$(muB)_Batch=$Tem.dat",
+                    stack(testdata2[:,2])[1,:,:],
+                )
+            end
+        end
+    end
+end
+
+
+
+[0.1f0,0.105,0.108,0.11,0.12f0,0.13f0,0.15f0]
+
+[-0.1f0,-0.105f0,-0.108f0,-0.11f0], [-0.12f0,-0.13f0,-0.6f0,0.6f0]
+asyncmap((zip(2:3, [0 1]))) do (p, d)
+    remotecall_wait(p) do
+        # @info "Worker $p uses $d"
+        device!(d)
+        # u0_1 = CUDA.fill(0.6f0, 32, 32, 32, 2^11)
+        # v0_1 = CUDA.fill(0.0f0, 32, 32, 32, 2^11)
+        task_muB = [0, [0.0f0], [0.1f0]][p]
+        for muB in task_muB
+            for Tem = 1:1
+                @info "T=$Tem muB=$(muB)"
+                GC.gc(true)
+                CUDA.reclaim()
+                u0_1 = CUDA.fill(muB,32, 32, 32, 2^12)
+                GC.gc(true)
+                CUDA.reclaim()
+                qcdmodel = eqcd_potential_dataloader(63)[50]
+                sol_3D_SDE_EM = modelA_3d_SDE_Simple_prob(;
+                    solver = DRI1NM(),
+                    γ = 1.0f0,
+                    T = qcdmodel.T,
+                    para = qcdmodel.U,
+                    u0 = u0_1,
+                    tspan = (0.0f0, 15.0f0),
+                    # save_end=true,
+                    # dt = 0.02f0,
+                    dx = 0.1f0,
+                    noise = "sqrt",
+                    abstol = 2e-2,
+                    reltol = 2e-2,
+                    # dt=0.01f0,
+                )
+                testdata2 = sol_3D_SDE_EM
+                # mv1 = [mean(vec(testdata2[:, i])) for i = 1:601]
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/constini/gamma=1_ini=$(muB)_time_Batch=$Tem.dat",
+                    testdata2[:,1],
+                )
+                writedlm(
+                    "sims/ini_compare/mub=630_T=50/constini/gamma=1_ini=$(muB)_Batch=$Tem.dat",
+                    stack(testdata2[:,2])[1,:,:],
+                )
+            end
+        end
+    end
+end
 
 ##############
 #compare the initial condition
@@ -30,21 +251,7 @@ qcdmodel.U
 
 TaylorParameters([0.0f0 0.5f0 0.0f0 0.0f0 0.0f0 1.0f0 0.0f0])[1]
 u0_1 = CUDA.fill(-0.1f0, 32, 32, 32, 2^10);
-@time sol_3D_SDE_2 = modelA_3d_SDE_Simple_prob(;
-    solver = DRI1NM(),
-    γ = 4.0f0,
-    T = 1.0f0 * qcdmodel.T,
-    para = qcdmodel.U,
-    u0 = u0_1,
-    tspan = (0.0f0, 50.0f0),
-    # save_end=true,
-    # dt = 0.02f0,
-    dx = 0.1f0,
-    noise = "sqrt",
-    abstol = 5e-2,
-    reltol = 5e-2,
-    # dt=0.01f0,
-)
+
 plot(LangevinDynamics.Uσfunout(qcdmodel.U), -0.6, 0.6)
 
 plot!(sol_3D_SDE_2[:, 1], sol_3D_SDE_2[:, 2])
